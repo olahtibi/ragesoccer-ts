@@ -31,6 +31,27 @@ npm run format      # format source and tests
 
 The production build uses relative URLs and is deployed to GitHub Pages automatically after every push to `main`. Enable it once in the repository settings by selecting **Settings → Pages → Source → GitHub Actions**.
 
+### Test the production build locally
+
+To test the same generated files that GitHub Pages deploys:
+
+```sh
+npm run build
+npx vite preview
+```
+
+Open the URL printed by Vite, usually `http://localhost:4173/`. Stop the preview server with `Ctrl+C`. Run `npm run build` again after changing the source code.
+
+## Testing
+
+```sh
+npm run test:run                       # run the complete test suite once
+npm run test                           # watch and rerun tests after changes
+npm run test:run -- --reporter=verbose # run once and show every test name
+npm run test -- --reporter=verbose     # watch mode showing every test name
+npm run check                          # types, lint, formatting, and all tests
+```
+
 ## Controls
 
 - Arrow keys or touch: control the selected home player
