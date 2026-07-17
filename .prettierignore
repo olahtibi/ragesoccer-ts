@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+project-to-port
+package-lock.json
+public/assets/images
