@@ -1,8 +1,23 @@
+import type { Ball } from "./ball";
+import type { Player } from "./player";
+import type { Team } from "./team";
+
 export { Stadium };
 
 class Stadium {
-  [key: string]: any;
-  public constructor(imgStadium, ball, homeTeam, awayTeam) {
+  public readonly imgStadium: HTMLImageElement;
+  public readonly ball: Ball;
+  public readonly homeTeam: Team;
+  public readonly awayTeam: Team;
+  public readonly teams: Team[];
+  public readonly players: Player[];
+
+  public constructor(
+    imgStadium: HTMLImageElement,
+    ball: Ball,
+    homeTeam: Team,
+    awayTeam: Team,
+  ) {
     this.imgStadium = imgStadium;
     this.ball = ball;
     this.homeTeam = homeTeam;
@@ -11,7 +26,7 @@ class Stadium {
     this.players = homeTeam.players.concat(awayTeam.players);
   }
 
-  public draw(ctx) {
+  public draw(ctx: CanvasRenderingContext2D): void {
     ctx.drawImage(this.imgStadium, 0, 0);
     if (this.ball.heldBy == null) this.ball.draw(ctx);
     for (let i = 0; i < this.players.length; i++) {
@@ -25,7 +40,10 @@ class Stadium {
 
   // Private helpers
 
-  private drawHumanPlayerMarker(ctx, player) {
+  private drawHumanPlayerMarker(
+    ctx: CanvasRenderingContext2D,
+    player: Player,
+  ): void {
     const centerX = player.position.x - 1;
     const centerY = player.position.y - 2;
     const outerRadius = 10;

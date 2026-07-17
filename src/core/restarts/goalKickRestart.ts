@@ -1,16 +1,27 @@
 import { Formation } from "../../ai/formation";
 import { Vector2 as Vector2d, Vector3 as Vector3d } from "../../math/vector";
+import type {
+  GameContext,
+  RestartRequest,
+  RestartScene,
+  RestartStrategy,
+  TeamAiState,
+} from "../../types";
+import type { Team } from "../../world/team";
+import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { GoalKickRestart };
 
-class GoalKickRestart {
-  [key: string]: any;
-  public constructor(config) {
+class GoalKickRestart implements RestartStrategy {
+  public readonly config: Configuration;
+  public readonly allowEarlyResume: boolean;
+
+  public constructor(config: Configuration) {
     this.config = config;
     this.allowEarlyResume = true;
   }
 
-  private ballPosition(request) {
+  private ballPosition(request: RestartRequest): Vector3d {
     return new Vector3d(
       this.config.pitch.initialBallPosition.x,
       request.boundary == "top"
@@ -20,7 +31,10 @@ class GoalKickRestart {
     );
   }
 
-  public createScene(context, request) {
+  public createScene(
+    context: GameContext,
+    request: RestartRequest,
+  ): RestartScene {
     const ballPosition = this.ballPosition(request);
     const offset = this.config.restarts.goalKickTakerDistance;
     const takerY =
@@ -37,7 +51,10 @@ class GoalKickRestart {
     );
   }
 
-  private goalkeeperIndex(context, request) {
+  private goalkeeperIndex(
+    context: GameContext,
+    request: RestartRequest,
+  ): number {
     for (let i = 0; i < context.teams.length; i++) {
       const team = context.teams[i];
       if (team.side != request.awardedTo) continue;
@@ -51,17 +68,17 @@ class GoalKickRestart {
     return 0;
   }
 
-  public teamAiState(team, request) {
+  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
     return RestartPositioning.stateFor("goalKick", team, request);
   }
 
-  public canTeamMove(team, request) {
+  public canTeamMove(team: Team, request: RestartRequest): boolean {
     return team.side == request.awardedTo;
   }
 
-  public enforceRules() {}
+  public enforceRules(): void {}
 
-  public isComplete(context) {
+  public isComplete(context: GameContext): boolean {
     const velocity = context.ball.velocity;
     const minSpeed = this.config.physics.minVelocity || 0;
     return (

@@ -1,22 +1,31 @@
 import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d } from "../../math/vector";
+import type { Vector2 } from "../../math/vector";
+import type {
+  CommandDebugSnapshot,
+  IndividualAi,
+  IndividualAiContext,
+} from "../individualAi";
 export { AttackBallCommand };
 
 class AttackBallCommand {
-  [key: string]: any;
+  public state: "stopped" | "shoot" | "detour" | "approach";
+  private attackOrbitDir: -1 | 0 | 1;
+  private correctingAim: boolean;
+
   public constructor() {
     this.state = "stopped";
     this.attackOrbitDir = 0;
     this.correctingAim = false;
   }
 
-  public reset() {
+  public reset(): void {
     this.state = "stopped";
     this.attackOrbitDir = 0;
     this.correctingAim = false;
   }
 
-  public update(ai, context) {
+  public update(ai: IndividualAi, context: IndividualAiContext): void {
     const target = this.attackBallTarget(ai, context);
     const reachedRadius = this.correctingAim
       ? ai.config.ai.attackCorrectionReachedRadius
@@ -24,7 +33,10 @@ class AttackBallCommand {
     ai.moveTo(target, reachedRadius);
   }
 
-  private attackBallTarget(ai, context) {
+  private attackBallTarget(
+    ai: IndividualAi,
+    context: IndividualAiContext,
+  ): Vector2 {
     const ball = context.ball;
     const toTarget =
       context.attackTarget == null
@@ -76,7 +88,11 @@ class AttackBallCommand {
     );
   }
 
-  private attackAimError(ai, ballPosition, toTarget) {
+  private attackAimError(
+    ai: IndividualAi,
+    ballPosition: Vector2,
+    toTarget: Vector2,
+  ): number {
     const dx = ai.player.position.x - ballPosition.x;
     const dy = ai.player.position.y - ballPosition.y;
     if (dx * dx + dy * dy < 0.0001) {
@@ -87,7 +103,11 @@ class AttackBallCommand {
     return Math.abs(MathLib.angleDeltaRadians(angleBehind, anglePlayer));
   }
 
-  private attackDetourTarget(ai, ballPosition, toGoal) {
+  private attackDetourTarget(
+    ai: IndividualAi,
+    ballPosition: Vector2,
+    toGoal: Vector2,
+  ): Vector2 {
     const dx = ai.player.position.x - ballPosition.x;
     const dy = ai.player.position.y - ballPosition.y;
     const anglePlayer = MathLib.computeAngleRadians(dx, dy);
@@ -111,7 +131,7 @@ class AttackBallCommand {
     return new Vector2d(ballPosition.x + offset.x, ballPosition.y + offset.y);
   }
 
-  public debugSnapshot() {
+  public debugSnapshot(): CommandDebugSnapshot {
     return {
       state: this.state,
       attackOrbitDir: this.attackOrbitDir,

@@ -1,10 +1,17 @@
 import { Formation } from "../ai/formation";
+import type { Configuration } from "../core/configuration";
+import type { TeamSide } from "../types";
 import { Player } from "./player";
 export { Team };
 
 class Team {
-  [key: string]: any;
-  public constructor(config, side) {
+  public readonly config: Configuration;
+  public readonly side: TeamSide;
+  public readonly players: Player[];
+  public humanPlayer: Player | null;
+  public score: number;
+
+  public constructor(config: Configuration, side: TeamSide) {
     this.config = config;
     this.side = side;
     this.players = this.createPlayers();
@@ -14,7 +21,7 @@ class Team {
 
   // Private helpers
 
-  private createPlayers() {
+  private createPlayers(): Player[] {
     const size =
       this.side == "home"
         ? this.config.teams.homeSize
@@ -28,7 +35,7 @@ class Team {
       this.side,
       size,
     );
-    const players = [];
+    const players: Player[] = [];
     const img =
       this.side == "home"
         ? this.config.assets.playerHome

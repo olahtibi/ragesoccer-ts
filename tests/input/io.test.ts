@@ -200,13 +200,13 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
     ),
   });
   var controller = setupResult.positioningController;
-  for (var t = 0; t < controller._sceneTeams.length; t++) {
-    for (var i = 0; i < controller._sceneTeams[t].players.length; i++) {
-      if (controller._sceneTeams[t].players[i] === controller._readyPlayer) {
-        controller._readyPlayer.position.x =
-          controller._sceneTeams[t].positions[i].x;
-        controller._readyPlayer.position.y =
-          controller._sceneTeams[t].positions[i].y;
+  for (var t = 0; t < controller.sceneTeams.length; t++) {
+    for (var i = 0; i < controller.sceneTeams[t].players.length; i++) {
+      if (controller.sceneTeams[t].players[i] === controller.readyPlayer) {
+        controller.readyPlayer.position.x =
+          controller.sceneTeams[t].positions[i].x;
+        controller.readyPlayer.position.y =
+          controller.sceneTeams[t].positions[i].y;
       }
     }
   }
@@ -282,11 +282,11 @@ test("Restart positioning selects the newly closest human player on completion",
   });
   setupResult.game.beginRestart("kickoff", "home");
   var controller = setupResult.positioningController;
-  for (var i = 0; i < controller._sceneTeams[0].players.length; i++) {
-    controller._sceneTeams[0].players[i].position.x =
-      controller._sceneTeams[0].positions[i].x;
-    controller._sceneTeams[0].players[i].position.y =
-      controller._sceneTeams[0].positions[i].y;
+  for (var i = 0; i < controller.sceneTeams[0].players.length; i++) {
+    controller.sceneTeams[0].players[i].position.x =
+      controller.sceneTeams[0].positions[i].x;
+    controller.sceneTeams[0].players[i].position.y =
+      controller.sceneTeams[0].positions[i].y;
   }
 
   controller.clear(setupResult.game.context());

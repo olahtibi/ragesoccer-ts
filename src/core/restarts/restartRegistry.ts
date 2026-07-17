@@ -1,16 +1,19 @@
+import type { RestartStrategy, RestartType } from "../../types";
+
 export { RestartRegistry };
 
 class RestartRegistry {
-  [key: string]: any;
+  private readonly strategies: Partial<Record<RestartType, RestartStrategy>>;
+
   public constructor() {
-    this._strategies = {};
+    this.strategies = {};
   }
 
-  public register(type, strategy) {
-    this._strategies[type] = strategy;
+  public register(type: RestartType, strategy: RestartStrategy): void {
+    this.strategies[type] = strategy;
   }
 
-  public get(type) {
-    return this._strategies[type] || null;
+  public get(type: RestartType): RestartStrategy | null {
+    return this.strategies[type] || null;
   }
 }

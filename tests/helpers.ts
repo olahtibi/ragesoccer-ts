@@ -52,7 +52,7 @@ export function makeFixture(options: FixtureOptions = {}) {
   const ball = game.stadium.ball;
   const homeTeam = game.teams[0];
   const awayTeam = game.teams[1];
-  const restartController = game.matchFlow._restartController;
+  const restartController = game.matchFlow.restartController;
 
   return {
     config,
@@ -63,15 +63,15 @@ export function makeFixture(options: FixtureOptions = {}) {
     awayTeam,
     homePlayers: homeTeam.players,
     awayPlayers: awayTeam.players,
-    goalDetector: game.matchFlow._goalDetector,
-    boundaryDetector: game.matchFlow._boundaryDetector,
+    goalDetector: game.matchFlow.goalDetector,
+    boundaryDetector: game.matchFlow.boundaryDetector,
     stadium: game.stadium,
     physics: game.physics,
     teamAis: game.teamAis,
     homeTeamAi: game.teamAis[0],
     awayTeamAi: game.teamAis[1],
     restartController,
-    positioningController: restartController._positioningController,
+    positioningController: restartController.positioningController,
     game,
   };
 }

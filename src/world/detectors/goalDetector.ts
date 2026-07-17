@@ -1,49 +1,55 @@
 import { math as MathLib } from "../../math/math";
+import type { Configuration } from "../../core/configuration";
+import type { TeamSide } from "../../types";
+import type { Ball } from "../ball";
 export { GoalDetector };
 
 class GoalDetector {
-  [key: string]: any;
-  public constructor(config, ball) {
-    this._config = config;
-    this._ball = ball;
-    this._state = "start";
+  private readonly config: Configuration;
+  private readonly ball: Ball;
+  private state: "start" | "goal";
+
+  public constructor(config: Configuration, ball: Ball) {
+    this.config = config;
+    this.ball = ball;
+    this.state = "start";
   }
 
-  public update() {
+  public update(): TeamSide | null {
     if (
-      this._state == "start" &&
+      this.state == "start" &&
       MathLib.inside(
-        this._config.pitch.goalTopTopLeft,
-        this._config.pitch.goalTopBottomRight,
-        this._ball.position,
+        this.config.pitch.goalTopTopLeft,
+        this.config.pitch.goalTopBottomRight,
+        this.ball.position,
       )
     ) {
-      this._state = "goal";
+      this.state = "goal";
       return "home";
     } else if (
-      this._state == "start" &&
+      this.state == "start" &&
       MathLib.inside(
-        this._config.pitch.goalBottomTopLeft,
-        this._config.pitch.goalBottomBottomRight,
-        this._ball.position,
+        this.config.pitch.goalBottomTopLeft,
+        this.config.pitch.goalBottomBottomRight,
+        this.ball.position,
       )
     ) {
-      this._state = "goal";
+      this.state = "goal";
       return "away";
     } else if (
-      this._state == "goal" &&
+      this.state == "goal" &&
       !MathLib.inside(
-        this._config.pitch.goalTopTopLeft,
-        this._config.pitch.goalTopBottomRight,
-        this._ball.position,
+        this.config.pitch.goalTopTopLeft,
+        this.config.pitch.goalTopBottomRight,
+        this.ball.position,
       ) &&
       !MathLib.inside(
-        this._config.pitch.goalBottomTopLeft,
-        this._config.pitch.goalBottomBottomRight,
-        this._ball.position,
+        this.config.pitch.goalBottomTopLeft,
+        this.config.pitch.goalBottomBottomRight,
+        this.ball.position,
       )
     ) {
-      this._state = "start";
+      this.state = "start";
     }
     return null;
   }

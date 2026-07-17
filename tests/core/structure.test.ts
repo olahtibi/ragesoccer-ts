@@ -33,7 +33,7 @@ test("PositioningController retains the sceneTeams ownership contract", function
     "utf8",
   );
   assertTrue(source.includes("options.sceneTeams"));
-  assertTrue(source.includes("this._sceneTeams"));
+  assertTrue(source.includes("this.sceneTeams"));
   assertTrue(source.includes("movePlayerToTarget("));
   assertTrue(!source.includes("\n  movePlayerToTarget("));
 });

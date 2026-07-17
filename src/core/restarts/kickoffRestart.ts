@@ -1,19 +1,36 @@
 import { Formation } from "../../ai/formation";
 import { Vector2 as Vector2d } from "../../math/vector";
+import type { Vector2 } from "../../math/vector";
+import type {
+  GameContext,
+  RestartRequest,
+  RestartScene,
+  RestartStrategy,
+  TeamAiState,
+  TeamSide,
+} from "../../types";
+import type { Team } from "../../world/team";
+import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { KickoffRestart };
 
-class KickoffRestart {
-  [key: string]: any;
-  public constructor(config) {
+class KickoffRestart implements RestartStrategy {
+  public readonly config: Configuration;
+  public readonly formation: Formation;
+  public readonly opponentAutoResumeAfterPositioning: boolean;
+
+  public constructor(config: Configuration) {
     this.config = config;
     this.formation = new Formation(config);
     this.opponentAutoResumeAfterPositioning = true;
   }
 
-  public createScene(context, request) {
-    const sceneTeams = [];
-    let readyPlayer = null;
+  public createScene(
+    context: GameContext,
+    request: RestartRequest,
+  ): RestartScene {
+    const sceneTeams: RestartScene["sceneTeams"] = [];
+    let readyPlayer: RestartScene["readyPlayer"] = null;
     for (let i = 0; i < context.teams.length; i++) {
       const team = context.teams[i];
       const state = this.teamAiState(team, request);
@@ -44,8 +61,12 @@ class KickoffRestart {
     };
   }
 
-  private applyPositioningRules(positions, side, takerIndex) {
-    const result = [];
+  private applyPositioningRules(
+    positions: Vector2[],
+    side: TeamSide,
+    takerIndex: number,
+  ): Vector2[] {
+    const result: Vector2[] = [];
     const centerX = this.config.pitch.initialBallPosition.x;
     const centerY = this.config.pitch.aiCenterY;
     const radiusX =
@@ -78,15 +99,15 @@ class KickoffRestart {
     return result;
   }
 
-  public teamAiState(team, request) {
+  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
     return team.side == request.awardedTo ? "kickoffUs" : "kickoffOpponent";
   }
 
-  public canTeamMove(team, request) {
+  public canTeamMove(team: Team, request: RestartRequest): boolean {
     return team.side == request.awardedTo;
   }
 
-  public enforceRules(context, request) {
+  public enforceRules(context: GameContext, request: RestartRequest): void {
     if (request.awardedTo != "home") return;
     const player = context.humanController.player();
     if (player == null) return;
@@ -113,7 +134,7 @@ class KickoffRestart {
     }
   }
 
-  public isComplete(context) {
+  public isComplete(context: GameContext): boolean {
     const velocity = context.ball.velocity;
     const minSpeed = this.config.physics.minVelocity || 0;
     return (

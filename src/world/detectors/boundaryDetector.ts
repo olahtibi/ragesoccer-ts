@@ -1,44 +1,67 @@
 import { Vector2 as Vector2d } from "../../math/vector";
+import type { Configuration } from "../../core/configuration";
+import type { Boundary, BoundaryEvent } from "../../types";
+import type { Ball } from "../ball";
 export { BoundaryDetector };
 
+interface Bounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+interface CrossingCandidate {
+  boundary: Boundary;
+  position: Vector2d;
+  t: number;
+}
+
 class BoundaryDetector {
-  [key: string]: any;
-  public constructor(config, ball) {
-    this._config = config;
-    this._ball = ball;
-    this._previousPosition = new Vector2d(ball.position.x, ball.position.y);
-    this._outside = false;
+  private readonly config: Configuration;
+  private readonly ball: Ball;
+  private previousPosition: Vector2d;
+  private outside: boolean;
+
+  public constructor(config: Configuration, ball: Ball) {
+    this.config = config;
+    this.ball = ball;
+    this.previousPosition = new Vector2d(ball.position.x, ball.position.y);
+    this.outside = false;
   }
 
-  public update() {
-    const current = new Vector2d(this._ball.position.x, this._ball.position.y);
-    if (!this._config.restarts.outOfPlayEnabled) {
-      this._previousPosition = current;
-      this._outside = false;
+  public update(): BoundaryEvent | null {
+    const current = new Vector2d(this.ball.position.x, this.ball.position.y);
+    if (!this.config.restarts.outOfPlayEnabled) {
+      this.previousPosition = current;
+      this.outside = false;
       return null;
     }
 
-    const crossing = this.firstCrossing(this._previousPosition, current);
+    const crossing = this.firstCrossing(this.previousPosition, current);
     const currentlyOutside = this.isOutside(current);
     if (!currentlyOutside) {
-      this._previousPosition = current;
-      this._outside = false;
+      this.previousPosition = current;
+      this.outside = false;
       return null;
     }
-    if (this._outside) return null;
+    if (this.outside) return null;
 
-    this._outside = true;
-    const lastInBounds = this._previousPosition;
-    this._previousPosition = current;
+    this.outside = true;
+    const lastInBounds = this.previousPosition;
+    this.previousPosition = current;
     if (crossing == null) return null;
-    crossing.lastTouchedBy = this._ball.lastTouchedBy;
-    crossing.lastInBounds = new Vector2d(lastInBounds.x, lastInBounds.y);
-    return crossing;
+    return {
+      boundary: crossing.boundary,
+      position: crossing.position,
+      lastTouchedBy: this.ball.lastTouchedBy,
+      lastInBounds: new Vector2d(lastInBounds.x, lastInBounds.y),
+    };
   }
 
   // Private helpers
 
-  private isOutside(position) {
+  private isOutside(position: Vector2d): boolean {
     const bounds = this.bounds();
     return (
       position.x < bounds.left ||
@@ -48,19 +71,22 @@ class BoundaryDetector {
     );
   }
 
-  private bounds() {
-    const radius = this._ball.ballRadius || this._config.ball.radius || 0;
+  private bounds(): Bounds {
+    const radius = this.ball.ballRadius || this.config.ball.radius || 0;
     return {
-      left: this._config.pitch.fieldLeft - radius,
-      right: this._config.pitch.fieldRight + radius,
-      top: this._config.pitch.fieldTop - radius,
-      bottom: this._config.pitch.fieldBottom + radius,
+      left: this.config.pitch.fieldLeft - radius,
+      right: this.config.pitch.fieldRight + radius,
+      top: this.config.pitch.fieldTop - radius,
+      bottom: this.config.pitch.fieldBottom + radius,
     };
   }
 
-  private firstCrossing(from, to) {
+  private firstCrossing(
+    from: Vector2d,
+    to: Vector2d,
+  ): CrossingCandidate | null {
     const bounds = this.bounds();
-    const candidates = [];
+    const candidates: CrossingCandidate[] = [];
     this.addVerticalCrossing(candidates, "left", bounds.left, from, to);
     this.addVerticalCrossing(candidates, "right", bounds.right, from, to);
     this.addHorizontalCrossing(candidates, "top", bounds.top, from, to);
@@ -72,7 +98,13 @@ class BoundaryDetector {
     return candidates[0];
   }
 
-  private addVerticalCrossing(candidates, boundary, x, from, to) {
+  private addVerticalCrossing(
+    candidates: CrossingCandidate[],
+    boundary: Boundary,
+    x: number,
+    from: Vector2d,
+    to: Vector2d,
+  ): void {
     const dx = to.x - from.x;
     if (dx == 0) return;
     const t = (x - from.x) / dx;
@@ -83,7 +115,13 @@ class BoundaryDetector {
     candidates.push({ boundary: boundary, position: new Vector2d(x, y), t: t });
   }
 
-  private addHorizontalCrossing(candidates, boundary, y, from, to) {
+  private addHorizontalCrossing(
+    candidates: CrossingCandidate[],
+    boundary: Boundary,
+    y: number,
+    from: Vector2d,
+    to: Vector2d,
+  ): void {
     const dy = to.y - from.y;
     if (dy == 0) return;
     const t = (y - from.y) / dy;
@@ -94,11 +132,11 @@ class BoundaryDetector {
     candidates.push({ boundary: boundary, position: new Vector2d(x, y), t: t });
   }
 
-  public reset() {
-    this._previousPosition = new Vector2d(
-      this._ball.position.x,
-      this._ball.position.y,
+  public reset(): void {
+    this.previousPosition = new Vector2d(
+      this.ball.position.x,
+      this.ball.position.y,
     );
-    this._outside = false;
+    this.outside = false;
   }
 }

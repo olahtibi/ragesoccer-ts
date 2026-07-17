@@ -1,11 +1,52 @@
 import { math as MathLib } from "../math/math";
 import { Vector2 as Vector2d } from "../math/vector";
-import { createIndividualAiCommandRegistry } from "./commands/commandRegistry";
+import type { Vector2 } from "../math/vector";
+import type { Configuration } from "../core/configuration";
+import type { IndividualCommandName } from "../types";
+import type { Ball } from "../world/ball";
+import type { Player } from "../world/player";
+import type { Team } from "../world/team";
+import {
+  createIndividualAiCommandRegistry,
+  type IndividualAiCommandRegistry,
+} from "./commands/commandRegistry";
 export { IndividualAi };
 
+export interface IndividualAiContext {
+  ball: Ball;
+  attackTarget: Vector2 | null;
+}
+
+export interface CommandDebugSnapshot {
+  state: string;
+  attackOrbitDir?: number;
+  correctingAim?: boolean;
+}
+
+export interface IndividualAiDebugSnapshot extends CommandDebugSnapshot {
+  command: IndividualCommandName;
+  target: Vector2 | null;
+}
+
+export interface IndividualAiCommand {
+  state: string;
+  reset?: () => void;
+  update: (ai: IndividualAi, context: IndividualAiContext) => void;
+  debugSnapshot?: () => CommandDebugSnapshot;
+}
+
 class IndividualAi {
-  [key: string]: any;
-  public constructor(config, team, player) {
+  public readonly config: Configuration;
+  public readonly team: Team;
+  public readonly player: Player;
+  public command: IndividualCommandName;
+  public target: Vector2 | null;
+  public tPos: Vector2 | null;
+  public readonly commands: IndividualAiCommandRegistry;
+  public activeCommand: IndividualAiCommand | null;
+  public formationPaceMultiplier: number;
+
+  public constructor(config: Configuration, team: Team, player: Player) {
     this.config = config;
     this.team = team;
     this.player = player;
@@ -17,20 +58,23 @@ class IndividualAi {
     this.formationPaceMultiplier = 1;
   }
 
-  public setCommand(command, target) {
+  public setCommand(
+    command: IndividualCommandName,
+    target: Vector2 | null = null,
+  ): void {
     if (
       this.command != command &&
       this.activeCommand != null &&
       this.activeCommand.reset != null
     ) {
-      this.activeCommand.reset(this);
+      this.activeCommand.reset();
     }
     this.command = command;
     this.target = target || null;
     this.activeCommand = this.commands[this.command] || null;
   }
 
-  public update(context) {
+  public update(context: IndividualAiContext): void {
     if (this.activeCommand == null) {
       this.stop();
       return;
@@ -39,7 +83,7 @@ class IndividualAi {
     this.activeCommand.update(this, context);
   }
 
-  public toOpponentGoal(ballPosition) {
+  public toOpponentGoal(ballPosition: Vector2): Vector2 {
     let goal;
     if (this.team.side == "home") {
       goal = new Vector2d(
@@ -66,7 +110,11 @@ class IndividualAi {
     return MathLib.normalizeVector(dx, dy, 0, 1);
   }
 
-  public isAlignedBehindBall(ballPosition, toGoal, tolerance) {
+  public isAlignedBehindBall(
+    ballPosition: Vector2,
+    toGoal: Vector2,
+    tolerance: number | null = null,
+  ): boolean {
     const dx = this.player.position.x - ballPosition.x;
     const dy = this.player.position.y - ballPosition.y;
     if (dx * dx + dy * dy < 0.0001) {
@@ -81,7 +129,10 @@ class IndividualAi {
     );
   }
 
-  public moveTo(target, targetReachedRadius) {
+  public moveTo(
+    target: Vector2,
+    targetReachedRadius: number | null = null,
+  ): "stopped" | "moving" {
     this.tPos = target;
 
     const dx = target.x - this.player.position.x;
@@ -101,7 +152,10 @@ class IndividualAi {
     return "moving";
   }
 
-  public moveToFormationPosition(target, resumeFromStop) {
+  public moveToFormationPosition(
+    target: Vector2,
+    resumeFromStop: boolean,
+  ): "stopped" | "moving" {
     this.tPos = target;
 
     const dx = target.x - this.player.position.x;
@@ -133,14 +187,14 @@ class IndividualAi {
     return "moving";
   }
 
-  public stop() {
+  public stop(): "stopped" {
     this.player.velocity.x = 0;
     this.player.velocity.y = 0;
     return "stopped";
   }
 
-  public debugSnapshot() {
-    const snapshot = {
+  public debugSnapshot(): IndividualAiDebugSnapshot {
+    const snapshot: IndividualAiDebugSnapshot = {
       command: this.command,
       state: this.activeCommand != null ? this.activeCommand.state : "stopped",
       target: this.tPos,
@@ -149,10 +203,7 @@ class IndividualAi {
       this.activeCommand != null &&
       this.activeCommand.debugSnapshot != null
     ) {
-      const commandSnapshot = this.activeCommand.debugSnapshot(this);
-      for (const key in commandSnapshot) {
-        snapshot[key] = commandSnapshot[key];
-      }
+      Object.assign(snapshot, this.activeCommand.debugSnapshot());
     }
     return snapshot;
   }

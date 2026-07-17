@@ -1,9 +1,21 @@
 import { math as MathLib } from "../math/math";
+import type { Configuration } from "../core/configuration";
+import type { Stadium } from "./stadium";
 export { Physics };
 
 class Physics {
-  [key: string]: any;
-  public constructor(config, stadium) {
+  public readonly config: Configuration;
+  public readonly stadium: Stadium;
+  public lastUpdated: number;
+  public fps: number;
+  public displayFps: number;
+  public readonly deltaArr: number[];
+  public readonly fpsDisplayIntervalMs: number;
+  public lastFpsDisplayUpdated: number;
+  public frameNumber: number;
+  public lastDt: number;
+
+  public constructor(config: Configuration, stadium: Stadium) {
     this.config = config;
     this.stadium = stadium;
     this.lastUpdated = new Date().getTime();
@@ -16,7 +28,7 @@ class Physics {
     this.lastDt = 0;
   }
 
-  public update() {
+  public update(): void {
     const currentTime = new Date().getTime();
     const dt = this.computeDt(currentTime);
     if (dt == null) {
@@ -29,7 +41,7 @@ class Physics {
     this.updateStats(currentTime);
   }
 
-  public updatePlayersOnly() {
+  public updatePlayersOnly(): void {
     const currentTime = new Date().getTime();
     const dt = this.computeDt(currentTime);
     if (dt == null) {
@@ -40,7 +52,7 @@ class Physics {
     this.updateStats(currentTime);
   }
 
-  public updateBallOnly() {
+  public updateBallOnly(): void {
     const currentTime = new Date().getTime();
     const dt = this.computeDt(currentTime);
     if (dt == null) return;
@@ -51,7 +63,7 @@ class Physics {
 
   // Private helpers
 
-  private computeDt(currentTime) {
+  private computeDt(currentTime: number): number {
     let dt = (currentTime - this.lastUpdated) / 1000.0;
     // Clamp dt so a paused/backgrounded tab doesn't teleport bodies on resume.
     if (dt > this.config.physics.maxDeltaSeconds)
@@ -60,12 +72,12 @@ class Physics {
     return dt;
   }
 
-  public resetClock() {
+  public resetClock(): void {
     this.lastUpdated = new Date().getTime();
     this.lastDt = 0;
   }
 
-  private updateStats(currentTime) {
+  private updateStats(currentTime: number): void {
     this.frameNumber++;
     const deltaT = currentTime - this.lastUpdated;
     const sampleFrames = this.config.physics.statsSampleFrames;
@@ -90,7 +102,7 @@ class Physics {
     this.lastUpdated = currentTime;
   }
 
-  private updatePlayerPositions(dt) {
+  private updatePlayerPositions(dt: number): void {
     for (let i = 0; i < this.stadium.players.length; i++) {
       const p = this.stadium.players[i];
       p.position.x += p.velocity.x * dt;
@@ -100,7 +112,7 @@ class Physics {
 
   // Circle-circle contact + impulse-based response. Runs once per frame after
   // the players have moved but before the ball has integrated its own velocity.
-  private resolveBallPlayerContacts() {
+  private resolveBallPlayerContacts(): void {
     const ball = this.stadium.ball;
     // A high, lofted ball flies over the player and cannot be touched.
     if (ball.position.z > this.config.physics.ballContactMaxZ) {
@@ -120,7 +132,8 @@ class Physics {
       ball.lastTouchedBy = p.teamSide;
       // Contact normal (unit vector from player toward ball).
       const d = Math.sqrt(d2);
-      let nx, ny;
+      let nx: number;
+      let ny: number;
       if (d > this.config.physics.zeroDistanceEpsilon) {
         nx = dx / d;
         ny = dy / d;
@@ -183,7 +196,7 @@ class Physics {
     }
   }
 
-  private updateBallPosition(dt) {
+  private updateBallPosition(dt: number): void {
     const ball = this.stadium.ball;
 
     // Vertical motion: gravity + ground bounce with restitution.
@@ -235,20 +248,20 @@ class Physics {
   }
 
   // Reflect the ball off a vertical-normal wall (horizontal surface, ball crossing pY).
-  private reflectY(moveArray) {
+  private reflectY(moveArray: number[]): void {
     const e = this.config.physics.wallRestitution;
     moveArray[1] = -moveArray[1] * e;
     this.stadium.ball.velocity.y = -this.stadium.ball.velocity.y * e;
   }
 
   // Reflect the ball off a horizontal-normal wall (vertical surface, ball crossing pX).
-  private reflectX(moveArray) {
+  private reflectX(moveArray: number[]): void {
     const e = this.config.physics.wallRestitution;
     moveArray[0] = -moveArray[0] * e;
     this.stadium.ball.velocity.x = -this.stadium.ball.velocity.x * e;
   }
 
-  private checkGoalCollision(moveArray) {
+  private checkGoalCollision(moveArray: number[]): void {
     if (
       MathLib.isIntersectedVertically(
         this.config.pitch.goalTopTopLeft.x,
@@ -319,7 +332,7 @@ class Physics {
     }
   }
 
-  private checkBoxCollision(moveArray) {
+  private checkBoxCollision(moveArray: number[]): void {
     if (
       MathLib.isIntersectedVertically(
         this.config.pitch.boxTopLeft.x,

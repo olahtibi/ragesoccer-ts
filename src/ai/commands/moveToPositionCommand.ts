@@ -1,16 +1,19 @@
+import type { IndividualAi } from "../individualAi";
+
 export { MoveToPositionCommand };
 
 class MoveToPositionCommand {
-  [key: string]: any;
+  public state: "stopped" | "moving";
+
   public constructor() {
     this.state = "stopped";
   }
 
-  public reset() {
+  public reset(): void {
     this.state = "stopped";
   }
 
-  public update(ai) {
+  public update(ai: IndividualAi): void {
     if (ai.target == null) {
       this.state = ai.stop();
       return;

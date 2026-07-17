@@ -1,12 +1,63 @@
 import { math as MathLib } from "../math/math";
 import { Vector2 as Vector2d } from "../math/vector";
-import { Formation } from "./formation";
-import { IndividualAi } from "./individualAi";
+import type { Vector2 } from "../math/vector";
+import type { Configuration } from "../core/configuration";
+import type { TeamAiState } from "../types";
+import type { Ball } from "../world/ball";
+import type { Player } from "../world/player";
+import type { Team } from "../world/team";
+import { Formation, type FormationRole } from "./formation";
+import { IndividualAi, type IndividualAiDebugSnapshot } from "./individualAi";
 export { TeamAi };
 
+export interface TeamAiUpdateContext {
+  deltaSeconds: number;
+  restartActive: boolean;
+  canMove: boolean;
+  restartTaker: Player | null;
+  positioningTargets: Vector2[] | null;
+  attackTarget: Vector2 | null;
+}
+
+export interface TeamAiDebugSnapshot extends IndividualAiDebugSnapshot {
+  teamState: TeamAiState;
+}
+
+interface MovementProfile {
+  role: FormationRole;
+  paceValue: number;
+  paceMultiplier: number;
+  lateralBias: number;
+  depthBias: number;
+  responseRate: number;
+  ballResponseMultiplier: number;
+  smoothedTarget: Vector2 | null;
+  wanderStep: number;
+  wanderElapsed: number;
+  wanderDuration: number;
+  wanderFrom: Vector2;
+  wanderTo: Vector2;
+}
+
 class TeamAi {
-  [key: string]: any;
-  public constructor(config, team, opponentTeam, ball) {
+  public readonly config: Configuration;
+  public readonly team: Team;
+  public readonly opponentTeam: Team;
+  public readonly ball: Ball;
+  public readonly formation: Formation;
+  public state: TeamAiState;
+  public ballAttacker: Player | null;
+  public cornerTakerIndex: number;
+  public cornerPositioningTargets: Vector2[] | null;
+  private readonly individualAis: IndividualAi[];
+  public readonly movementProfiles: MovementProfile[];
+
+  public constructor(
+    config: Configuration,
+    team: Team,
+    opponentTeam: Team,
+    ball: Ball,
+  ) {
     this.config = config;
     this.team = team;
     this.opponentTeam = opponentTeam;
@@ -19,23 +70,22 @@ class TeamAi {
     this.ballAttacker = null;
     this.cornerTakerIndex = -1;
     this.cornerPositioningTargets = null;
-    this._individualAis = [];
+    this.individualAis = [];
     this.movementProfiles = this.createMovementProfiles();
 
     for (let i = 0; i < team.players.length; i++) {
       const individualAi = new IndividualAi(config, team, team.players[i]);
       individualAi.formationPaceMultiplier =
         this.movementProfiles[i].paceMultiplier;
-      this._individualAis.push(individualAi);
+      this.individualAis.push(individualAi);
     }
   }
 
-  public update(context) {
+  public update(context: TeamAiUpdateContext): void {
     if (!this.config.ai.enabled) {
       return;
     }
 
-    context = context || {};
     const restartActive = context.restartActive == true;
     this.state = this.nextState(restartActive);
     this.updateCornerContext(context);
@@ -68,8 +118,8 @@ class TeamAi {
       attackTarget: context.attackTarget || null,
     };
 
-    for (let i = 0; i < this._individualAis.length; i++) {
-      const ai = this._individualAis[i];
+    for (let i = 0; i < this.individualAis.length; i++) {
+      const ai = this.individualAis[i];
       if (context.canMove == false) {
         ai.player.velocity.x = 0;
         ai.player.velocity.y = 0;
@@ -89,7 +139,7 @@ class TeamAi {
     }
   }
 
-  private updateCornerContext(context) {
+  private updateCornerContext(context: TeamAiUpdateContext): void {
     if (this.state != "cornerUs") {
       this.cornerTakerIndex = -1;
       this.cornerPositioningTargets = null;
@@ -103,10 +153,10 @@ class TeamAi {
     }
   }
 
-  private createMovementProfiles() {
+  private createMovementProfiles(): MovementProfile[] {
     const roles = this.formation.rolesForSize(this.team.players.length);
-    const profiles = [];
-    const paceValues = [];
+    const profiles: MovementProfile[] = [];
+    const paceValues: number[] = [];
     let paceTotal = 0;
 
     for (let i = 0; i < roles.length; i++) {
@@ -167,7 +217,7 @@ class TeamAi {
     return profiles;
   }
 
-  private profileValue(playerIndex, salt) {
+  private profileValue(playerIndex: number, salt: number): number {
     const sideSeed = this.team.side == "away" ? 0x9e3779b9 : 0x85ebca6b;
     let value =
       sideSeed ^
@@ -179,20 +229,28 @@ class TeamAi {
     return value / 2147483647.5 - 1;
   }
 
-  private profileRange(playerIndex, salt, min, max) {
+  private profileRange(
+    playerIndex: number,
+    salt: number,
+    min: number,
+    max: number,
+  ): number {
     const unit = (this.profileValue(playerIndex, salt) + 1) / 2;
     return min + (max - min) * unit;
   }
 
-  private exactTargets(targets) {
+  private exactTargets(targets: Vector2[]): Vector2[] {
     for (let i = 0; i < this.movementProfiles.length; i++) {
       this.movementProfiles[i].smoothedTarget = null;
     }
     return targets;
   }
 
-  private openPlayTargets(baseTargets, deltaSeconds) {
-    let desiredTargets = [];
+  private openPlayTargets(
+    baseTargets: Vector2[],
+    deltaSeconds: number,
+  ): Vector2[] {
+    let desiredTargets: Vector2[] = [];
     const attackDir = this.team.side == "home" ? -1 : 1;
 
     for (let i = 0; i < baseTargets.length; i++) {
@@ -221,7 +279,7 @@ class TeamAi {
 
     desiredTargets = this.separateFormationTargets(desiredTargets);
     const dt = deltaSeconds > 0 ? Math.min(deltaSeconds, 0.1) : 1 / 60;
-    const result = [];
+    const result: Vector2[] = [];
     for (let j = 0; j < desiredTargets.length; j++) {
       const movementProfile = this.movementProfiles[j];
       if (movementProfile.role == "goalie") {
@@ -250,7 +308,11 @@ class TeamAi {
     return result;
   }
 
-  private updateWander(profile, playerIndex, deltaSeconds) {
+  private updateWander(
+    profile: MovementProfile,
+    playerIndex: number,
+    deltaSeconds: number,
+  ): Vector2 {
     const dt = deltaSeconds > 0 ? Math.min(deltaSeconds, 0.1) : 1 / 60;
     if (profile.wanderDuration <= 0) {
       profile.wanderFrom = this.wanderOffset(playerIndex, 0);
@@ -282,7 +344,7 @@ class TeamAi {
     );
   }
 
-  private wanderOffset(playerIndex, step) {
+  private wanderOffset(playerIndex: number, step: number): Vector2 {
     return new Vector2d(
       this.profileValue(playerIndex, 30 + step * 2) *
         this.config.ai.formationWanderLateral,
@@ -291,7 +353,7 @@ class TeamAi {
     );
   }
 
-  private wanderDuration(playerIndex, step) {
+  private wanderDuration(playerIndex: number, step: number): number {
     return this.profileRange(
       playerIndex,
       100 + step,
@@ -300,7 +362,7 @@ class TeamAi {
     );
   }
 
-  private ballShiftForRole(role) {
+  private ballShiftForRole(role: FormationRole): Vector2 {
     const influence =
       role == "defender"
         ? this.config.ai.formationDefenderBallInfluence
@@ -331,12 +393,12 @@ class TeamAi {
     );
   }
 
-  private separateFormationTargets(targets) {
+  private separateFormationTargets(targets: Vector2[]): Vector2[] {
     const spacing = this.config.ai.minTeammateSpacing || 0;
     const maxShift = this.config.ai.formationSeparationMaxShift || 0;
     if (spacing <= 0 || maxShift <= 0) return targets;
 
-    const result = [];
+    const result: Vector2[] = [];
     for (let i = 0; i < targets.length; i++) {
       if (this.movementProfiles[i].role == "goalie") {
         result.push(targets[i]);
@@ -377,11 +439,11 @@ class TeamAi {
     return result;
   }
 
-  private clamp(value, min, max) {
+  private clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
   }
 
-  private shouldChaseCorner(playerIndex) {
+  private shouldChaseCorner(playerIndex: number): boolean {
     const groups = this.formation.cornerAssignments(
       this.team.players.length,
       this.cornerTakerIndex,
@@ -394,13 +456,13 @@ class TeamAi {
     );
   }
 
-  private cornerBallProgress() {
+  private cornerBallProgress(): number {
     return this.team.side == "home"
       ? this.ball.position.y - this.config.pitch.fieldTop
       : this.config.pitch.fieldBottom - this.ball.position.y;
   }
 
-  public setRestartState(state) {
+  public setRestartState(state: TeamAiState): boolean {
     if (typeof state != "string" || state.length == 0) {
       return false;
     }
@@ -409,7 +471,7 @@ class TeamAi {
     return true;
   }
 
-  private nextState(restartActive) {
+  private nextState(restartActive: boolean): TeamAiState {
     if (restartActive) {
       return this.state;
     }
@@ -432,7 +494,7 @@ class TeamAi {
     return "attack";
   }
 
-  private cornerAttackResolved() {
+  private cornerAttackResolved(): boolean {
     if (
       this.ball.lastTouchedBy != null &&
       this.ball.lastTouchedBy != this.team.side
@@ -452,7 +514,7 @@ class TeamAi {
     );
   }
 
-  private isBallInOwnHalf() {
+  private isBallInOwnHalf(): boolean {
     const y = this.ball.position.y;
     if (this.team.side == "home") {
       return y > this.config.pitch.aiCenterY;
@@ -460,7 +522,7 @@ class TeamAi {
     return y < this.config.pitch.aiCenterY;
   }
 
-  private isBallInOpponentHalf() {
+  private isBallInOpponentHalf(): boolean {
     const y = this.ball.position.y;
     if (this.team.side == "home") {
       return y < this.config.pitch.aiCenterY;
@@ -468,8 +530,8 @@ class TeamAi {
     return y > this.config.pitch.aiCenterY;
   }
 
-  private closestPlayerToBall() {
-    let closest = null;
+  private closestPlayerToBall(): Player | null {
+    let closest: Player | null = null;
     let closestDistance = Infinity;
     for (let i = 0; i < this.team.players.length; i++) {
       const player = this.team.players[i];
@@ -485,8 +547,9 @@ class TeamAi {
     return closest;
   }
 
-  private selectedBallAttacker() {
+  private selectedBallAttacker(): Player | null {
     const closest = this.closestPlayerToBall();
+    if (closest == null) return this.ballAttacker;
     if (this.ballAttacker != null && closest !== this.ballAttacker) {
       const currentDistance = MathLib.computeDistance(
         this.ballAttacker.position,
@@ -505,12 +568,11 @@ class TeamAi {
     return closest;
   }
 
-  public debugSnapshot() {
-    const result = [];
-    for (let i = 0; i < this._individualAis.length; i++) {
-      const snapshot = this._individualAis[i].debugSnapshot();
-      snapshot.teamState = this.state;
-      result.push(snapshot);
+  public debugSnapshot(): TeamAiDebugSnapshot[] {
+    const result: TeamAiDebugSnapshot[] = [];
+    for (let i = 0; i < this.individualAis.length; i++) {
+      const snapshot = this.individualAis[i].debugSnapshot();
+      result.push({ ...snapshot, teamState: this.state });
     }
     return result;
   }

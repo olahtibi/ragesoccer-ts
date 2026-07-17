@@ -1,10 +1,17 @@
 import { math as MathLib } from "../math/math";
 import { Vector2 as Vector2d } from "../math/vector";
+import type { Stadium } from "../world/stadium";
+import type { Configuration } from "./configuration";
 export { Camera };
 
 class Camera {
-  [key: string]: any;
-  public constructor(config, stadium) {
+  public readonly config: Configuration;
+  public readonly stadium: Stadium;
+  public readonly position: Vector2d;
+  public focusTarget: Vector2d | null;
+  public showStats: boolean;
+
+  public constructor(config: Configuration, stadium: Stadium) {
     this.config = config;
     this.stadium = stadium;
     this.position = new Vector2d(0, 0);
@@ -12,7 +19,7 @@ class Camera {
     this.showStats = false;
   }
 
-  public windowToViewport(ctx) {
+  public windowToViewport(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     const scaleBy = this.config.computeScaleBy();
     ctx.scale(scaleBy, scaleBy);
@@ -31,7 +38,10 @@ class Camera {
 
   // Private helpers
 
-  private viewportPositionForTarget(target, scaleBy) {
+  private viewportPositionForTarget(
+    target: Vector2d,
+    scaleBy: number,
+  ): Vector2d {
     const position = new Vector2d(0, 0);
     if (
       target.x * scaleBy >=
@@ -65,15 +75,15 @@ class Camera {
     return position;
   }
 
-  public setFocusTarget(target) {
+  public setFocusTarget(target: Vector2d): void {
     this.focusTarget = target;
   }
 
-  public clearFocusTarget() {
+  public clearFocusTarget(): void {
     this.focusTarget = null;
   }
 
-  public hasArrivedAtFocus() {
+  public hasArrivedAtFocus(): boolean {
     if (this.focusTarget == null) {
       return true;
     }
@@ -87,7 +97,10 @@ class Camera {
     );
   }
 
-  public renderOverlay(ctx, displayFps) {
+  public renderOverlay(
+    ctx: CanvasRenderingContext2D,
+    displayFps: number,
+  ): void {
     if (
       this.config.viewport.ratio >= this.config.viewport.overlayMinRatio &&
       this.config.viewport.ratio <= this.config.viewport.overlayMaxRatio
@@ -95,13 +108,13 @@ class Camera {
       ctx.font = "30px Arial";
       ctx.fillStyle = "white";
       ctx.fillText(
-        this.stadium.homeTeam.score,
+        String(this.stadium.homeTeam.score),
         20 - this.position.x,
         40 - this.position.y,
       );
       ctx.fillStyle = "red";
       ctx.fillText(
-        this.stadium.homeTeam.score,
+        String(this.stadium.homeTeam.score),
         21 - this.position.x,
         39 - this.position.y,
       );
@@ -111,13 +124,13 @@ class Camera {
       ctx.fillText("-", 61 - this.position.x, 39 - this.position.y);
       ctx.fillStyle = "white";
       ctx.fillText(
-        this.stadium.awayTeam.score,
+        String(this.stadium.awayTeam.score),
         80 - this.position.x,
         40 - this.position.y,
       );
       ctx.fillStyle = "blue";
       ctx.fillText(
-        this.stadium.awayTeam.score,
+        String(this.stadium.awayTeam.score),
         81 - this.position.x,
         39 - this.position.y,
       );

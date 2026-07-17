@@ -1,8 +1,73 @@
+import type { TeamAi } from "../ai/teamAi";
+import type { Vector2 } from "../math/vector";
+import type {
+  DebugInputEvent,
+  MatchState,
+  RestartPhase,
+  RestartType,
+  TeamSide,
+} from "../types";
+import type { Ball } from "../world/ball";
+import type { Stadium } from "../world/stadium";
+import type { Configuration } from "./configuration";
+import type { Game } from "./game";
+
 export { DebugTool };
 
+interface VectorSnapshot {
+  x: number;
+  y: number;
+  z?: number;
+}
+
+interface TimedDebugEvent extends DebugInputEvent {
+  time: number;
+}
+
+interface PlayerDebugSnapshot {
+  team: TeamSide;
+  i: number;
+  pos: VectorSnapshot;
+  vel: VectorSnapshot;
+  facing: number[];
+  phase: number;
+  step: number;
+  human: boolean;
+}
+
+interface AiDebugSnapshot {
+  team: TeamSide;
+  i: number;
+  teamState: string;
+  command: string;
+  state: string;
+  target: VectorSnapshot | null;
+}
+
+interface GameDebugSnapshot {
+  frame: number;
+  time: number;
+  dt: number;
+  matchState: MatchState;
+  restart: { type: RestartType | null; phase: RestartPhase | null };
+  scores: { home: number; away: number };
+  ball: {
+    pos: VectorSnapshot;
+    vel: VectorSnapshot;
+    lastTouchedBy: TeamSide | null;
+  };
+  players: PlayerDebugSnapshot[];
+  ai: AiDebugSnapshot[];
+}
+
 class DebugTool {
-  [key: string]: any;
-  public constructor(config) {
+  public readonly config: Configuration;
+  public readonly snapshots: GameDebugSnapshot[];
+  public readonly events: TimedDebugEvent[];
+  public frame: number;
+  public startTimeMs: number | null;
+
+  public constructor(config: Configuration) {
     this.config = config;
     this.snapshots = [];
     this.events = [];
@@ -10,7 +75,7 @@ class DebugTool {
     this.startTimeMs = null;
   }
 
-  public record(game) {
+  public record(game: Game): void {
     if (!this.config.debug.enabled) {
       return;
     }
@@ -28,27 +93,27 @@ class DebugTool {
     this.trim(snapshot.time);
   }
 
-  public recordKeyEvent(e) {
+  public recordKeyEvent(e: Pick<KeyboardEvent, "type" | "keyCode">): void {
     if (!this.config.debug.enabled) {
       return;
     }
 
-    const event = {
+    const event: TimedDebugEvent = {
       time: this.round(this.currentTimeSeconds()),
       frame: this.frame,
-      type: e.type,
+      type: e.type === "keydown" ? "keydown" : "keyup",
       keyCode: e.keyCode,
     };
     this.events.push(event);
     this.trim(event.time);
   }
 
-  public recordTouchEvent(target) {
+  public recordTouchEvent(target: Vector2): void {
     if (!this.config.debug.enabled) {
       return;
     }
 
-    const event = {
+    const event: TimedDebugEvent = {
       time: this.round(this.currentTimeSeconds()),
       frame: this.frame,
       type: "touch",
@@ -58,7 +123,7 @@ class DebugTool {
     this.trim(event.time);
   }
 
-  public dump() {
+  public dump(): void {
     if (!this.config.debug.enabled) {
       return;
     }
@@ -72,7 +137,7 @@ class DebugTool {
     );
   }
 
-  private trim(currentTime) {
+  private trim(currentTime: number): void {
     const seconds = this.config.debug.logSeconds;
     if (seconds == null || seconds < 0) {
       return;
@@ -87,7 +152,7 @@ class DebugTool {
     }
   }
 
-  private snapshot(game, frame, time) {
+  private snapshot(game: Game, frame: number, time: number): GameDebugSnapshot {
     return {
       frame: frame,
       time: this.round(time),
@@ -109,7 +174,7 @@ class DebugTool {
     };
   }
 
-  private ballSnapshot(ball) {
+  private ballSnapshot(ball: Ball): GameDebugSnapshot["ball"] {
     return {
       pos: this.vectorSnapshot(ball.position),
       vel: this.vectorSnapshot(ball.velocity),
@@ -117,8 +182,8 @@ class DebugTool {
     };
   }
 
-  private playersSnapshot(stadium) {
-    const result = [];
+  private playersSnapshot(stadium: Stadium): PlayerDebugSnapshot[] {
+    const result: PlayerDebugSnapshot[] = [];
     for (let t = 0; t < stadium.teams.length; t++) {
       const team = stadium.teams[t];
       for (let i = 0; i < team.players.length; i++) {
@@ -138,8 +203,8 @@ class DebugTool {
     return result;
   }
 
-  private aiSnapshot(teamAis) {
-    const result = [];
+  private aiSnapshot(teamAis: TeamAi[]): AiDebugSnapshot[] {
+    const result: AiDebugSnapshot[] = [];
     for (let t = 0; t < teamAis.length; t++) {
       const teamAi = teamAis[t];
       const team = teamAi.team;
@@ -159,7 +224,7 @@ class DebugTool {
     return result;
   }
 
-  public draw(ctx, teamAis) {
+  public draw(ctx: CanvasRenderingContext2D, teamAis: TeamAi[]): void {
     for (let t = 0; t < teamAis.length; t++) {
       const teamAi = teamAis[t];
       const snapshots = teamAi.debugSnapshot();
@@ -177,15 +242,21 @@ class DebugTool {
     }
   }
 
-  private vectorSnapshot(vector) {
+  private vectorSnapshot(vector: Vector2 & { z?: number }): VectorSnapshot;
+  private vectorSnapshot(vector: null): null;
+  private vectorSnapshot(
+    vector: (Vector2 & { z?: number }) | null,
+  ): VectorSnapshot | null;
+  private vectorSnapshot(
+    vector: (Vector2 & { z?: number }) | null,
+  ): VectorSnapshot | null {
     if (vector == null) {
       return null;
     }
 
-    const result = {
+    const result: VectorSnapshot = {
       x: this.round(vector.x),
       y: this.round(vector.y),
-      z: undefined,
     };
     if (vector.z != null) {
       result.z = this.round(vector.z);
@@ -193,21 +264,18 @@ class DebugTool {
     return result;
   }
 
-  private round(value) {
-    if (typeof value !== "number") {
-      return value;
-    }
+  private round(value: number): number {
     return Math.round(value * 100) / 100;
   }
 
-  private nowMs() {
+  private nowMs(): number {
     if (typeof performance !== "undefined" && performance.now) {
       return performance.now();
     }
     return Date.now();
   }
 
-  private currentTimeSeconds() {
+  private currentTimeSeconds(): number {
     const now = this.nowMs();
     if (this.startTimeMs == null) {
       this.startTimeMs = now;

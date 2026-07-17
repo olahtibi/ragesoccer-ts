@@ -178,6 +178,7 @@ test("attackBall keeps shoot commitment without relaxing entry accuracy", functi
     fixture.config.player.spriteHeight,
     fixture.config.player.spriteCenterX,
     fixture.config.player.spriteCenterY,
+    fixture.config.player,
   );
   var freshAi = new IndividualAi(fixture.config, fixture.awayTeam, freshPlayer);
   freshAi.setCommand("attackBall", null);

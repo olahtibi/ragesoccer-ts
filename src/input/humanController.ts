@@ -1,9 +1,19 @@
 import { math as MathLib } from "../math/math";
+import type { Vector2 } from "../math/vector";
+import type { Configuration } from "../core/configuration";
+import type { Ball } from "../world/ball";
+import type { Player } from "../world/player";
+import type { Team } from "../world/team";
 export { HumanController };
 
 class HumanController {
-  [key: string]: any;
-  public constructor(config, team, ball) {
+  public readonly config: Configuration;
+  public readonly team: Team;
+  public readonly ball: Ball;
+  public keys: Record<number, boolean>;
+  public touchTarget: Vector2 | null;
+
+  public constructor(config: Configuration, team: Team, ball: Ball) {
     this.config = config;
     this.team = team;
     this.ball = ball;
@@ -11,20 +21,20 @@ class HumanController {
     this.touchTarget = null;
   }
 
-  public player() {
+  public player(): Player | null {
     return this.team.humanPlayer;
   }
 
-  public setKey(keyCode, pressed) {
+  public setKey(keyCode: number, pressed: boolean): void {
     this.keys[keyCode] = pressed;
     if (this.hasMovementInput()) this.touchTarget = null;
   }
 
-  public setTouchTarget(target) {
+  public setTouchTarget(target: Vector2): void {
     this.touchTarget = target;
   }
 
-  public clearInput() {
+  public clearInput(): void {
     this.keys = {};
     this.touchTarget = null;
     const player = this.player();
@@ -33,11 +43,13 @@ class HumanController {
     player.velocity.y = 0;
   }
 
-  public hasMovementInput() {
-    return this.keys[37] || this.keys[38] || this.keys[39] || this.keys[40];
+  public hasMovementInput(): boolean {
+    return Boolean(
+      this.keys[37] || this.keys[38] || this.keys[39] || this.keys[40],
+    );
   }
 
-  public inputDirection() {
+  public inputDirection(): Vector2 | null {
     let x = 0;
     let y = 0;
     if (this.keys[37]) x--;
@@ -48,7 +60,7 @@ class HumanController {
     return MathLib.normalizeVector(x, y, 0, -1);
   }
 
-  public selectPlayer(preferredPlayer) {
+  public selectPlayer(preferredPlayer: Player | null = null): Player | null {
     if (preferredPlayer != null) {
       const selected = this.team.humanPlayer;
       if (selected != null && selected !== preferredPlayer) {
@@ -61,6 +73,7 @@ class HumanController {
 
     const closest = this.closestPlayerToBall();
     const current = this.team.humanPlayer;
+    if (closest == null) return current;
     if (current != null && closest !== current) {
       const currentDistance = MathLib.computeDistance(
         current.position,
@@ -85,8 +98,8 @@ class HumanController {
     return closest;
   }
 
-  public closestPlayerToBall() {
-    let closest = null;
+  public closestPlayerToBall(): Player | null {
+    let closest: Player | null = null;
     let distance = Infinity;
     for (let i = 0; i < this.team.players.length; i++) {
       const candidate = this.team.players[i];
@@ -102,7 +115,7 @@ class HumanController {
     return closest;
   }
 
-  public update(canMove) {
+  public update(canMove: boolean): void {
     const player = this.player();
     if (player == null) return;
     player.velocity.x = 0;

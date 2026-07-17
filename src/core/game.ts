@@ -1,4 +1,11 @@
 import { TeamAi } from "../ai/teamAi";
+import type { Vector2 } from "../math/vector";
+import type {
+  GameContext,
+  RestartRequest,
+  RestartType,
+  TeamSide,
+} from "../types";
 import { HumanController } from "../input/humanController";
 import { Ball } from "../world/ball";
 import { BoundaryDetector } from "../world/detectors/boundaryDetector";
@@ -7,6 +14,7 @@ import { Physics } from "../world/physics";
 import { Stadium } from "../world/stadium";
 import { Team } from "../world/team";
 import { Camera } from "./camera";
+import type { Configuration } from "./configuration";
 import { DebugTool } from "./debugTool";
 import { MatchFlow } from "./matchFlow";
 import { CornerRestart } from "./restarts/cornerRestart";
@@ -18,9 +26,32 @@ import { RestartRegistry } from "./restarts/restartRegistry";
 import { ThrowInRestart } from "./restarts/throwInRestart";
 export { Game, createContext, createGame };
 
+interface GameOptions {
+  config: Configuration;
+  stadium: Stadium;
+  teams: Team[];
+  teamAis: TeamAi[];
+  camera: Camera;
+  physics: Physics;
+  humanController: HumanController;
+  matchFlow: MatchFlow;
+  debugTool: DebugTool;
+}
+
+type RestartDetails = Omit<Partial<RestartRequest>, "type" | "awardedTo">;
+
 class Game {
-  [key: string]: any;
-  public constructor(options) {
+  public readonly config: Configuration;
+  public readonly stadium: Stadium;
+  public readonly teams: Team[];
+  public readonly teamAis: TeamAi[];
+  public readonly camera: Camera;
+  public readonly physics: Physics;
+  public readonly humanController: HumanController;
+  public readonly matchFlow: MatchFlow;
+  public readonly debugTool: DebugTool;
+
+  public constructor(options: GameOptions) {
     this.config = options.config;
     this.stadium = options.stadium;
     this.teams = options.teams;
@@ -32,7 +63,7 @@ class Game {
     this.debugTool = options.debugTool;
   }
 
-  public context() {
+  public context(): GameContext {
     return {
       config: this.config,
       stadium: this.stadium,
@@ -44,11 +75,11 @@ class Game {
     };
   }
 
-  public isPaused() {
+  public isPaused(): boolean {
     return this.matchFlow.isPaused();
   }
 
-  public togglePause() {
+  public togglePause(): void {
     if (this.matchFlow.isPaused()) {
       this.matchFlow.resume();
     } else {
@@ -56,20 +87,20 @@ class Game {
     }
   }
 
-  public resumeFromInput(direction) {
+  public resumeFromInput(direction: Vector2 | null): boolean {
     return this.matchFlow.resumeFromInput(this.context(), direction);
   }
 
-  public beginRestart(type, awardedTo, details) {
-    const request = Object.create(null);
-    details = details || {};
-    for (const key in details) request[key] = details[key];
-    request.type = type;
-    request.awardedTo = awardedTo;
+  public beginRestart(
+    type: RestartType,
+    awardedTo: TeamSide,
+    details: RestartDetails = {},
+  ): boolean {
+    const request: RestartRequest = { ...details, type, awardedTo };
     return this.matchFlow.beginRestart(request, this.context());
   }
 
-  public update() {
+  public update(): void {
     const context = this.context();
     const mode = this.matchFlow.simulationMode();
     if (mode == "none") {
@@ -92,7 +123,7 @@ class Game {
     this.debugTool.record(this);
   }
 
-  public render(ctx) {
+  public render(ctx: CanvasRenderingContext2D): void {
     this.camera.windowToViewport(ctx);
     this.stadium.draw(ctx);
     if (this.isPaused()) this.debugTool.draw(ctx, this.teamAis);
@@ -101,7 +132,7 @@ class Game {
 
   // Private helpers
 
-  private updateAi() {
+  private updateAi(): void {
     this.humanController.selectPlayer();
     for (let i = 0; i < this.teamAis.length; i++) {
       const teamAi = this.teamAis[i];
@@ -119,7 +150,7 @@ class Game {
   }
 }
 
-function createGame(config) {
+function createGame(config: Configuration): Game {
   const ball = new Ball(
     config.assets.ball,
     config.ball.radius,
@@ -173,7 +204,7 @@ function createGame(config) {
   return game;
 }
 
-function createContext(game) {
+function createContext(game: Game): CanvasRenderingContext2D {
   const canvas = game.config.assets.canvas;
   canvas.width = game.config.viewport.width;
   canvas.height = game.config.viewport.height;

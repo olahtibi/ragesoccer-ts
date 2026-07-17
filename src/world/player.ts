@@ -1,19 +1,52 @@
 import { math as MathLib } from "../math/math";
 import { Vector2 as Vector2d } from "../math/vector";
+import type { Configuration } from "../core/configuration";
+import type { TeamSide } from "../types";
 export { Player };
 
+export interface SpriteFrame {
+  phaseIndex: number;
+  topLeftY: number;
+}
+
 class Player {
-  [key: string]: any;
+  public readonly imgPlayer: HTMLImageElement;
+  public readonly position: Vector2d;
+  public readonly playerSpriteWidth: number;
+  public readonly playerSpriteHeight: number;
+  public readonly playerSpriteCenterX: number;
+  public readonly playerSpriteCenterY: number;
+  public facingX: number;
+  public facingY: number;
+  public velocity: Vector2d;
+  public animationFacingX: number;
+  public animationFacingY: number;
+  public animationDirectionX: number;
+  public animationDirectionY: number;
+  public animationMoving: boolean;
+  public animationIdleSeconds: number;
+  public animationLastTimeMs: number | null;
+  public readonly animationDirectionResponseRate: number;
+  public readonly animationDirectionConfidenceThreshold: number;
+  public readonly animationIdleGraceSeconds: number;
+  public readonly animationMaxDeltaSeconds: number;
+  public readonly spriteSourceRowHeight: number;
+  public phaseIndex: number;
+  public stepDistance: number;
+  public teamSide: TeamSide;
+  private readonly stepPxPerPhase: number;
+  private readonly spritePhases: number;
+  private readonly lastAnimationPosition: Vector2d;
+
   public constructor(
-    imgPlayer,
-    position,
-    playerSpriteWidth,
-    playerSpriteHeight,
-    playerSpriteCenterX,
-    playerSpriteCenterY,
-    animationConfig,
+    imgPlayer: HTMLImageElement,
+    position: Vector2d,
+    playerSpriteWidth: number,
+    playerSpriteHeight: number,
+    playerSpriteCenterX: number,
+    playerSpriteCenterY: number,
+    animationConfig: Configuration["player"],
   ) {
-    animationConfig = animationConfig || {};
     this.imgPlayer = imgPlayer;
     this.position = position;
     this.playerSpriteWidth = playerSpriteWidth;
@@ -41,19 +74,17 @@ class Player {
     this.animationMaxDeltaSeconds =
       animationConfig.animationMaxDeltaSeconds || 0.1;
     this.spriteSourceRowHeight = animationConfig.spriteSourceRowHeight || 18;
-    this._stepPxPerPhase = animationConfig.stepPxPerPhase;
-    this._spritePhases = animationConfig.spritePhases;
-    this._lastAnimationPosition = new Vector2d(
-      this.position.x,
-      this.position.y,
-    );
+    this.stepPxPerPhase = animationConfig.stepPxPerPhase;
+    this.spritePhases = animationConfig.spritePhases;
+    this.lastAnimationPosition = new Vector2d(this.position.x, this.position.y);
     // Walk-cycle state advances with rendered travel rather than wall-clock
     // time, so the animation naturally freezes when the player does.
     this.phaseIndex = 0;
     this.stepDistance = 0;
+    this.teamSide = "home";
   }
 
-  public updateFacing() {
+  public updateFacing(): void {
     if (this.velocity.x == 0 && this.velocity.y == 0) {
       return;
     }
@@ -62,7 +93,7 @@ class Player {
     this.facingY = facing.y;
   }
 
-  public facingForDirection(x, y) {
+  public facingForDirection(x: number, y: number): Vector2d {
     const alpha = MathLib.computeAngleRadians(x, y);
     const eastNorth = Math.PI / 8; // 22.5 degrees
     const southEast = (3 * Math.PI) / 8; // 67.5 degrees
@@ -90,14 +121,14 @@ class Player {
     return new Vector2d(1, -1);
   }
 
-  public animationNowMs() {
+  public animationNowMs(): number {
     if (typeof performance != "undefined" && performance.now) {
       return performance.now();
     }
     return Date.now();
   }
 
-  public animationElapsedSeconds(nowMs) {
+  public animationElapsedSeconds(nowMs: number): number {
     if (this.animationLastTimeMs == null) {
       this.animationLastTimeMs = nowMs;
       return 0;
@@ -107,7 +138,7 @@ class Player {
     return Math.max(0, Math.min(this.animationMaxDeltaSeconds, elapsed));
   }
 
-  public updateAnimation(nowMs) {
+  public updateAnimation(nowMs: number | null = null): void {
     nowMs = nowMs == null ? this.animationNowMs() : nowMs;
     const elapsed = this.animationElapsedSeconds(nowMs);
     this.updateWalkAnimation();
@@ -163,22 +194,22 @@ class Player {
     }
   }
 
-  private updateWalkAnimation() {
-    const dx = this.position.x - this._lastAnimationPosition.x;
-    const dy = this.position.y - this._lastAnimationPosition.y;
+  private updateWalkAnimation(): void {
+    const dx = this.position.x - this.lastAnimationPosition.x;
+    const dy = this.position.y - this.lastAnimationPosition.y;
     const distance = MathLib.vectorLength(dx, dy);
     if (distance > 0) {
       this.stepDistance += distance;
-      while (this.stepDistance >= this._stepPxPerPhase) {
-        this.phaseIndex = (this.phaseIndex + 1) % this._spritePhases;
-        this.stepDistance -= this._stepPxPerPhase;
+      while (this.stepDistance >= this.stepPxPerPhase) {
+        this.phaseIndex = (this.phaseIndex + 1) % this.spritePhases;
+        this.stepDistance -= this.stepPxPerPhase;
       }
     }
-    this._lastAnimationPosition.x = this.position.x;
-    this._lastAnimationPosition.y = this.position.y;
+    this.lastAnimationPosition.x = this.position.x;
+    this.lastAnimationPosition.y = this.position.y;
   }
 
-  public draw(ctx) {
+  public draw(ctx: CanvasRenderingContext2D): void {
     const topLeftX = 0;
     const sprite = this.spriteFrame();
     ctx.drawImage(
@@ -194,7 +225,7 @@ class Player {
     );
   }
 
-  public spriteFrame(animationTimeMs = null) {
+  public spriteFrame(animationTimeMs: number | null = null): SpriteFrame {
     this.updateAnimation(animationTimeMs);
     const phaseIndex = this.animationMoving ? this.phaseIndex : 0;
     let topLeftY = 0;

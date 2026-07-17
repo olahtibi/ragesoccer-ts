@@ -1,17 +1,31 @@
 import { Formation } from "../../ai/formation";
 import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d, Vector3 as Vector3d } from "../../math/vector";
+import type { Vector2 } from "../../math/vector";
+import type {
+  GameContext,
+  RestartRequest,
+  RestartScene,
+  RestartStrategy,
+  TeamAiState,
+} from "../../types";
+import type { Team } from "../../world/team";
+import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { CornerRestart };
 
-class CornerRestart {
-  [key: string]: any;
-  public constructor(config) {
+class CornerRestart implements RestartStrategy {
+  public readonly config: Configuration;
+  public readonly allowEarlyResume: boolean;
+
+  public constructor(config: Configuration) {
     this.config = config;
     this.allowEarlyResume = true;
   }
 
-  private ballPosition(request) {
+  private ballPosition(request: RestartRequest): Vector3d {
+    if (request.position == null || request.boundary == null)
+      throw new Error("Corner restart requires a boundary position");
     const clearance =
       this.config.ball.radius + this.config.restarts.placementClearance;
     const left = request.position.x <= this.config.pitch.initialBallPosition.x;
@@ -26,7 +40,10 @@ class CornerRestart {
     );
   }
 
-  public createScene(context, request) {
+  public createScene(
+    context: GameContext,
+    request: RestartRequest,
+  ): RestartScene {
     const ballPosition = this.ballPosition(request);
     const offset =
       this.config.player.radius +
@@ -68,7 +85,10 @@ class CornerRestart {
     );
   }
 
-  private awardedTeamSize(context, request) {
+  private awardedTeamSize(
+    context: GameContext,
+    request: RestartRequest,
+  ): number {
     for (let i = 0; i < context.teams.length; i++) {
       if (context.teams[i].side == request.awardedTo)
         return context.teams[i].players.length;
@@ -76,8 +96,12 @@ class CornerRestart {
     return 1;
   }
 
-  private takerIndex(context, request, ballPosition) {
-    let team = null;
+  private takerIndex(
+    context: GameContext,
+    request: RestartRequest,
+    ballPosition: Vector2,
+  ): number {
+    let team: Team | null = null;
     for (let i = 0; i < context.teams.length; i++) {
       if (context.teams[i].side == request.awardedTo) {
         team = context.teams[i];
@@ -109,15 +133,15 @@ class CornerRestart {
       : closestIndex;
   }
 
-  public teamAiState(team, request) {
+  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
     return RestartPositioning.stateFor("corner", team, request);
   }
 
-  public canTeamMove(team, request) {
+  public canTeamMove(team: Team, request: RestartRequest): boolean {
     return team.side == request.awardedTo;
   }
 
-  public attackTarget(team, request) {
+  public attackTarget(team: Team, request: RestartRequest): Vector2 | null {
     if (team.side != request.awardedTo) return null;
     return new Vector2d(
       this.config.pitch.initialBallPosition.x,
@@ -128,9 +152,9 @@ class CornerRestart {
     );
   }
 
-  public enforceRules() {}
+  public enforceRules(): void {}
 
-  public isComplete(context) {
+  public isComplete(context: GameContext): boolean {
     const velocity = context.ball.velocity;
     const minSpeed = this.config.physics.minVelocity || 0;
     return (

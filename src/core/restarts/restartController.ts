@@ -1,26 +1,66 @@
+import type { Vector2 } from "../../math/vector";
+import type {
+  GameContext,
+  RestartPhase,
+  RestartRequest,
+  RestartScene,
+  RestartSceneTeam,
+  RestartStrategy,
+  RestartType,
+  SimulationMode,
+} from "../../types";
+import type { Player } from "../../world/player";
+import type { Team } from "../../world/team";
+import type { PositioningController } from "./positioningController";
+import type { RestartRegistry } from "./restartRegistry";
+
 export { RestartController };
 
+export interface RestartBeginOptions {
+  positioningMode?: "immediate";
+}
+
+interface RestartSession {
+  request: RestartRequest;
+  strategy: RestartStrategy;
+  opponentReadyElapsed: number;
+  phase: RestartPhase;
+  taker?: Player | null;
+  positioningTeams?: RestartSceneTeam[];
+}
+
 class RestartController {
-  [key: string]: any;
-  public constructor(registry, positioningController) {
-    this._registry = registry;
-    this._positioningController = positioningController;
-    this._session = null;
-    this._restartSequence = 0;
+  private readonly registry: RestartRegistry;
+  public readonly positioningController: PositioningController;
+  private session: RestartSession | null;
+  private restartSequence: number;
+
+  public constructor(
+    registry: RestartRegistry,
+    positioningController: PositioningController,
+  ) {
+    this.registry = registry;
+    this.positioningController = positioningController;
+    this.session = null;
+    this.restartSequence = 0;
   }
 
-  public begin(request, context, options) {
-    const strategy = request == null ? null : this._registry.get(request.type);
+  public begin(
+    request: RestartRequest,
+    context: GameContext,
+    options: RestartBeginOptions | null = null,
+  ): boolean {
+    const strategy = this.registry.get(request.type);
     if (strategy == null) return false;
     const positioningMode = options != null ? options.positioningMode : null;
     const isImmediate = positioningMode == "immediate";
 
-    this._restartSequence++;
-    request.positioningSeed = this._restartSequence;
+    this.restartSequence++;
+    request.positioningSeed = this.restartSequence;
 
     context.humanController.clearInput();
     context.ball.heldBy = null;
-    this._session = {
+    this.session = {
       request: request,
       strategy: strategy,
       opponentReadyElapsed: 0,
@@ -29,24 +69,31 @@ class RestartController {
     this.assignTeamAiStates(context);
 
     const scene = strategy.createScene(context, request);
-    this._session.taker = scene.readyPlayer || null;
-    this._session.positioningTeams = scene.sceneTeams;
+    this.session.taker = scene.readyPlayer || null;
+    this.session.positioningTeams = scene.sceneTeams;
     if (isImmediate) {
       this.applySceneImmediately(context, scene);
       this.finishPositioning(context);
     } else {
-      scene.onComplete = () => {
-        this.finishPositioning(context);
-      };
-      if (!this._positioningController.play(scene)) {
-        this._session = null;
+      if (
+        !this.positioningController.play({
+          ...scene,
+          onComplete: () => {
+            this.finishPositioning(context);
+          },
+        })
+      ) {
+        this.session = null;
         return false;
       }
     }
     return true;
   }
 
-  private applySceneImmediately(context, scene) {
+  private applySceneImmediately(
+    context: GameContext,
+    scene: RestartScene,
+  ): void {
     context.ball.position.x = scene.ballPosition.x;
     context.ball.position.y = scene.ballPosition.y;
     context.ball.position.z = scene.ballPosition.z || 0;
@@ -64,73 +111,75 @@ class RestartController {
     }
   }
 
-  private finishPositioning(context) {
-    if (this._session == null) return;
-    this._session.phase = "waitingForInput";
-    if (this._session.strategy.onPositioned != null) {
-      this._session.strategy.onPositioned(context, this._session.request);
+  private finishPositioning(context: GameContext): void {
+    if (this.session == null) return;
+    this.session.phase = "waitingForInput";
+    if (this.session.strategy.onPositioned != null) {
+      this.session.strategy.onPositioned(context, this.session.request);
     }
     const humanTaker =
-      this._session.taker != null && this._session.taker.teamSide == "home"
-        ? this._session.taker
+      this.session.taker != null && this.session.taker.teamSide == "home"
+        ? this.session.taker
         : null;
     context.humanController.selectPlayer(humanTaker);
   }
 
-  private assignTeamAiStates(context) {
+  private assignTeamAiStates(context: GameContext): void {
+    if (this.session == null) return;
     for (let i = 0; i < context.teamAis.length; i++) {
       const teamAi = context.teamAis[i];
       teamAi.setRestartState(
-        this._session.strategy.teamAiState(teamAi.team, this._session.request),
+        this.session.strategy.teamAiState(teamAi.team, this.session.request),
       );
     }
   }
 
-  private resume(context, direction) {
+  private resume(context: GameContext, direction: Vector2 | null): boolean {
+    if (this.session == null) return false;
     if (!this.canResume()) return false;
-    if (this._session.phase == "positioning") {
-      this._positioningController.cancel(context);
+    if (this.session.phase == "positioning") {
+      this.positioningController.cancel(context);
       this.finishPositioning(context);
     }
     if (
-      this._session.strategy.resume != null &&
-      this._session.strategy.resume(
-        context,
-        this._session.request,
-        direction,
-      ) == false
+      this.session.strategy.resume != null &&
+      this.session.strategy.resume(context, this.session.request, direction) ==
+        false
     ) {
       return false;
     }
-    this._session.phase = "inProgress";
+    this.session.phase = "inProgress";
     return true;
   }
 
-  private canResume() {
-    if (this._session == null) return false;
-    if (this._session.phase == "waitingForInput") return true;
+  private canResume(): boolean {
+    if (this.session == null) return false;
+    if (this.session.phase == "waitingForInput") return true;
     return (
-      this._session.phase == "positioning" &&
-      this._session.strategy.allowEarlyResume == true &&
-      this._positioningController.isReadyForInput()
+      this.session.phase == "positioning" &&
+      this.session.strategy.allowEarlyResume == true &&
+      this.positioningController.isReadyForInput()
     );
   }
 
-  public canResumeFromInput() {
+  public canResumeFromInput(): boolean {
     return !this.isDelayedOpponentRestart() && this.canResume();
   }
 
-  public resumeFromInput(context, direction) {
+  public resumeFromInput(
+    context: GameContext,
+    direction: Vector2 | null,
+  ): boolean {
     if (!this.canResumeFromInput()) return false;
     return this.resume(context, direction);
   }
 
-  public simulationMode() {
-    if (this._session == null) return "full";
-    if (this._session.phase == "positioning") return "playersOnly";
-    if (this._session.phase == "inProgress") return "full";
+  public simulationMode(): SimulationMode {
+    if (this.session == null) return "full";
+    if (this.session.phase == "positioning") return "playersOnly";
+    if (this.session.phase == "inProgress") return "full";
     if (
-      this._session.phase == "waitingForInput" &&
+      this.session.phase == "waitingForInput" &&
       this.isDelayedOpponentRestart()
     ) {
       return "playersOnly";
@@ -138,107 +187,110 @@ class RestartController {
     return "none";
   }
 
-  private isDelayedOpponentRestart() {
+  private isDelayedOpponentRestart(): boolean {
     return (
-      this._session != null &&
-      this._session.request.awardedTo != "home" &&
-      (this._session.strategy.allowEarlyResume == true ||
-        this._session.strategy.opponentAutoResumeAfterPositioning == true)
+      this.session != null &&
+      this.session.request.awardedTo != "home" &&
+      (this.session.strategy.allowEarlyResume == true ||
+        this.session.strategy.opponentAutoResumeAfterPositioning == true)
     );
   }
 
-  public canTeamMove(team) {
-    if (this._session == null || this._session.phase != "inProgress")
+  public canTeamMove(team: Team): boolean {
+    if (this.session == null || this.session.phase != "inProgress")
       return false;
-    return this._session.strategy.canTeamMove(team, this._session.request);
+    return this.session.strategy.canTeamMove(team, this.session.request);
   }
 
-  public attackTarget(team) {
-    if (this._session == null || this._session.strategy.attackTarget == null)
+  public attackTarget(team: Team): Vector2 | null {
+    if (this.session == null || this.session.strategy.attackTarget == null)
       return null;
-    return this._session.strategy.attackTarget(team, this._session.request);
+    return this.session.strategy.attackTarget(team, this.session.request);
   }
 
-  public taker(team) {
+  public taker(team: Team): Player | null {
     if (
-      this._session == null ||
-      this._session.taker == null ||
-      this._session.taker.teamSide != team.side
+      this.session == null ||
+      this.session.taker == null ||
+      this.session.taker.teamSide != team.side
     )
       return null;
-    return this._session.taker;
+    return this.session.taker;
   }
 
-  public positioningTargets(team) {
-    if (this._session == null || this._session.positioningTeams == null)
+  public positioningTargets(team: Team): Vector2[] | null {
+    if (this.session == null || this.session.positioningTeams == null)
       return null;
-    for (let i = 0; i < this._session.positioningTeams.length; i++) {
-      if (this._session.positioningTeams[i].side == team.side) {
-        return this._session.positioningTeams[i].positions;
+    for (let i = 0; i < this.session.positioningTeams.length; i++) {
+      if (this.session.positioningTeams[i].side == team.side) {
+        return this.session.positioningTeams[i].positions;
       }
     }
     return null;
   }
 
-  public updateBeforePhysics(context) {
-    if (this._session != null && this._session.phase == "positioning") {
-      this._positioningController.updateBeforePhysics(context);
+  public updateBeforePhysics(context: GameContext): void {
+    if (this.session != null && this.session.phase == "positioning") {
+      this.positioningController.updateBeforePhysics(context);
     }
   }
 
-  public updateAfterPhysics(context, deltaSeconds) {
-    if (this._session == null) return;
-    if (this._session.phase == "positioning") {
-      this._positioningController.updateAfterPhysics(context);
+  public updateAfterPhysics(context: GameContext, deltaSeconds: number): void {
+    if (this.session == null) return;
+    if (this.session.phase == "positioning") {
+      this.positioningController.updateAfterPhysics(context);
       if (
-        this._session.phase == "waitingForInput" &&
-        this._session.strategy.opponentAutoResumeAfterPositioning == true
+        this.phase() == "waitingForInput" &&
+        this.session.strategy.opponentAutoResumeAfterPositioning == true
       ) {
-        this._session.opponentReadyElapsed = 0;
+        this.session.opponentReadyElapsed = 0;
         return;
       }
       this.resumeReadyRestart(context, deltaSeconds);
       return;
     }
-    if (this._session.phase == "waitingForInput") {
+    if (this.session.phase == "waitingForInput") {
       this.resumeReadyRestart(context, deltaSeconds);
       return;
     }
-    if (this._session.phase != "inProgress") return;
+    if (this.session.phase != "inProgress") return;
 
-    this._session.strategy.enforceRules(context, this._session.request);
-    if (this._session.strategy.isComplete(context, this._session.request)) {
-      this._session.phase = "complete";
+    this.session.strategy.enforceRules(context, this.session.request);
+    if (this.session.strategy.isComplete(context, this.session.request)) {
+      this.session.phase = "complete";
     }
   }
 
-  private resumeReadyRestart(context, deltaSeconds) {
-    if (this._session == null) return false;
-    if (this._session.request.awardedTo != "home") {
+  private resumeReadyRestart(
+    context: GameContext,
+    deltaSeconds: number,
+  ): boolean {
+    if (this.session == null) return false;
+    if (this.session.request.awardedTo != "home") {
       const canAutoResume =
-        this._session.strategy.allowEarlyResume == true ||
-        this._session.strategy.opponentAutoResumeAfterPositioning == true;
+        this.session.strategy.allowEarlyResume == true ||
+        this.session.strategy.opponentAutoResumeAfterPositioning == true;
       if (!canAutoResume) return false;
       if (
-        this._session.strategy.opponentAutoResumeAfterPositioning == true &&
-        this._session.phase == "positioning"
+        this.session.strategy.opponentAutoResumeAfterPositioning == true &&
+        this.session.phase == "positioning"
       ) {
-        this._session.opponentReadyElapsed = 0;
+        this.session.opponentReadyElapsed = 0;
         return false;
       }
       if (!this.canResume()) {
-        this._session.opponentReadyElapsed = 0;
+        this.session.opponentReadyElapsed = 0;
         return false;
       }
-      this._session.opponentReadyElapsed += deltaSeconds || 0;
+      this.session.opponentReadyElapsed += deltaSeconds || 0;
       const delay = Math.max(
         0,
         context.config.restarts.opponentDelaySeconds || 0,
       );
-      if (this._session.opponentReadyElapsed < delay) return false;
+      if (this.session.opponentReadyElapsed < delay) return false;
       return this.resume(context, null);
     }
-    if (this._session.strategy.allowEarlyResume != true) return false;
+    if (this.session.strategy.allowEarlyResume != true) return false;
     if (!this.canResume()) return false;
     if (context.humanController.hasMovementInput()) {
       return this.resume(context, context.humanController.inputDirection());
@@ -246,19 +298,19 @@ class RestartController {
     return false;
   }
 
-  public isComplete() {
-    return this._session != null && this._session.phase == "complete";
+  public isComplete(): boolean {
+    return this.session != null && this.session.phase == "complete";
   }
 
-  public clear() {
-    this._session = null;
+  public clear(): void {
+    this.session = null;
   }
 
-  public type() {
-    return this._session == null ? null : this._session.request.type;
+  public type(): RestartType | null {
+    return this.session == null ? null : this.session.request.type;
   }
 
-  public phase() {
-    return this._session == null ? null : this._session.phase;
+  public phase(): RestartPhase | null {
+    return this.session == null ? null : this.session.phase;
   }
 }

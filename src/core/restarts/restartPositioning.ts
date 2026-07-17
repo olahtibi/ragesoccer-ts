@@ -1,9 +1,61 @@
 import { Formation } from "../../ai/formation";
 import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d } from "../../math/vector";
+import type { Vector2 } from "../../math/vector";
+import type { Configuration } from "../configuration";
+import type {
+  GameContext,
+  RestartRequest,
+  RestartScene,
+  RestartType,
+  TeamAiState,
+  TeamSide,
+} from "../../types";
+import type { Player } from "../../world/player";
+import type { Team } from "../../world/team";
 export { RestartPositioning };
 
-var RestartPositioning = {
+interface RestartPositioningApi {
+  createScene(
+    config: Configuration,
+    context: GameContext,
+    request: RestartRequest,
+    ballPosition: Vector2,
+    takerPosition: Vector2,
+    takerIndex?: number | null,
+    awardedState?: TeamAiState | null,
+    awardedPositions?: Vector2[] | null,
+  ): RestartScene;
+  randomizePositions(
+    config: Configuration,
+    formation: Formation,
+    positions: Vector2[],
+    request: RestartRequest,
+    teamSide: TeamSide,
+    protectedIndex: number,
+  ): Vector2[];
+  randomValue(
+    seed: number | undefined,
+    teamSide: TeamSide,
+    playerIndex: number,
+    salt: number,
+  ): number;
+  closestPlayerIndex(players: Player[], position: Vector2): number;
+  applyOpponentDistance(
+    config: Configuration,
+    formation: Formation,
+    positions: Vector2[],
+    ballPosition: Vector2,
+  ): Vector2[];
+  clampToPlayingField(config: Configuration, position: Vector2): Vector2;
+  stateFor(
+    type: Exclude<RestartType, "kickoff">,
+    team: Team,
+    request: RestartRequest,
+  ): TeamAiState;
+}
+
+const RestartPositioning: RestartPositioningApi = {
   createScene: function (
     config,
     context,
@@ -15,8 +67,8 @@ var RestartPositioning = {
     awardedPositions = null,
   ) {
     var formation = new Formation(config);
-    var sceneTeams = [];
-    var readyPlayer = null;
+    var sceneTeams: RestartScene["sceneTeams"] = [];
+    var readyPlayer: Player | null = null;
     for (var i = 0; i < context.teams.length; i++) {
       var team = context.teams[i];
       var awarded = team.side == request.awardedTo;
@@ -75,7 +127,7 @@ var RestartPositioning = {
     teamSide,
     protectedIndex,
   ) {
-    var result = [];
+    var result: Vector2[] = [];
     var variationX = config.restarts.positionVariationX || 0;
     var variationY = config.restarts.positionVariationY || 0;
     for (var i = 0; i < positions.length; i++) {
@@ -122,7 +174,7 @@ var RestartPositioning = {
   },
 
   applyOpponentDistance: function (config, formation, positions, ballPosition) {
-    var result = [];
+    var result: Vector2[] = [];
     var minimum = config.restarts.opponentDistance || 0;
     for (var i = 0; i < positions.length; i++) {
       var target = positions[i];
@@ -159,6 +211,7 @@ var RestartPositioning = {
   },
 
   stateFor: function (type, team, request) {
-    return type + (team.side == request.awardedTo ? "Us" : "Opponent");
+    return (type +
+      (team.side == request.awardedTo ? "Us" : "Opponent")) as TeamAiState;
   },
 };

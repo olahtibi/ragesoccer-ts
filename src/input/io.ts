@@ -1,4 +1,6 @@
 import { Vector2 as Vector2d } from "../math/vector";
+import type { Boundary, RestartType, TeamSide } from "../types";
+import type { Game } from "../core/game";
 export { BrowserInput };
 
 const KEY = {
@@ -10,15 +12,19 @@ const KEY = {
 };
 
 class BrowserInput {
-  [key: string]: any;
-  public constructor(game, eventTarget) {
+  public readonly game: Game;
+  public readonly eventTarget: Window;
+  private readonly boundKeyHandler: (event: KeyboardEvent) => void;
+  private readonly boundTouchHandler: (event: TouchEvent) => void;
+
+  public constructor(game: Game, eventTarget: Window) {
     this.game = game;
     this.eventTarget = eventTarget;
     this.boundKeyHandler = this.handleKey.bind(this);
     this.boundTouchHandler = this.handleTouch.bind(this);
   }
 
-  public attach() {
+  public attach(): void {
     this.eventTarget.addEventListener("keydown", this.boundKeyHandler, false);
     this.eventTarget.addEventListener("keyup", this.boundKeyHandler, false);
     this.eventTarget.addEventListener(
@@ -28,7 +34,7 @@ class BrowserInput {
     );
   }
 
-  public handleTouch(event) {
+  public handleTouch(event: TouchEvent): void {
     if (
       (this.game.matchFlow.simulationMode() == "playersOnly" &&
         !this.game.matchFlow.canResumeFromInput()) ||
@@ -53,7 +59,7 @@ class BrowserInput {
     this.applyHumanInput();
   }
 
-  public handleKey(event) {
+  public handleKey(event: Pick<KeyboardEvent, "keyCode" | "type">): void {
     this.game.debugTool.recordKeyEvent(event);
     this.game.humanController.setKey(event.keyCode, event.type == "keydown");
     if (event.type == "keydown") this.handleCommand(event.keyCode);
@@ -63,7 +69,7 @@ class BrowserInput {
     this.applyHumanInput();
   }
 
-  public applyHumanInput() {
+  public applyHumanInput(): void {
     if (
       this.game.isPaused() ||
       this.game.matchFlow.simulationMode() == "playersOnly" ||
@@ -75,7 +81,7 @@ class BrowserInput {
     this.game.humanController.update(canMove);
   }
 
-  public handleCommand(keyCode) {
+  public handleCommand(keyCode: number): void {
     if (keyCode == KEY.fps)
       this.game.camera.showStats = !this.game.camera.showStats;
     if (keyCode == KEY.viewportSmaller) this.game.config.viewport.ratio /= 1.2;
@@ -90,8 +96,8 @@ class BrowserInput {
         this.game.config.pitch.initialBallPosition.x
           ? this.game.config.pitch.fieldLeft
           : this.game.config.pitch.fieldRight;
-      this.game.beginRestart("corner", "home", {
-        boundary: "top",
+      this.game.beginRestart("corner" as RestartType, "home" as TeamSide, {
+        boundary: "top" as Boundary,
         position: new Vector2d(cornerX, this.game.config.pitch.fieldTop),
       });
     }

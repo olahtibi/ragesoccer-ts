@@ -1,20 +1,37 @@
 import { Vector2 as Vector2d } from "../math/vector";
+import type { Vector2 } from "../math/vector";
+import type { Configuration } from "../core/configuration";
+import type { TeamAiState, TeamSide } from "../types";
 export { Formation };
 
+export type FormationRole = "goalie" | "defender" | "midfielder" | "striker";
+export type CornerAssignment =
+  "goalie" | "cover" | "taker" | "short" | "late" | "edge" | "box";
+
+export interface CornerAttackingPlan {
+  positions: Vector2[];
+  groups: CornerAssignment[];
+}
+
 class Formation {
-  [key: string]: any;
-  public constructor(config) {
+  public readonly config: Configuration;
+
+  public constructor(config: Configuration) {
     this.config = config;
   }
 
-  public positions(state, side, teamSize) {
+  public positions(
+    state: TeamAiState,
+    side: TeamSide,
+    teamSize: number,
+  ): Vector2[] {
     if (state == "cornerUs") {
       return this.cornerAttackingPositions(side, teamSize);
     }
 
     const roles = this.rolesForSize(teamSize);
-    const roleIndexes = {};
-    const result = [];
+    const roleIndexes: Partial<Record<FormationRole, number>> = {};
+    const result: Vector2[] = [];
 
     for (let i = 0; i < roles.length; i++) {
       const role = roles[i];
@@ -34,18 +51,26 @@ class Formation {
     return result;
   }
 
-  private cornerAttackingPositions(side, teamSize) {
+  private cornerAttackingPositions(
+    side: TeamSide,
+    teamSize: number,
+  ): Vector2[] {
     return this.cornerAttackingPlan(side, teamSize, -1, true).positions;
   }
 
-  public cornerAttackingPlan(side, teamSize, takerIndex, cornerLeft) {
+  public cornerAttackingPlan(
+    side: TeamSide,
+    teamSize: number,
+    takerIndex: number,
+    cornerLeft: boolean,
+  ): CornerAttackingPlan {
     const result = this.positions("attack", side, teamSize);
     const groups = this.cornerAssignments(teamSize, takerIndex);
-    const groupIndexes = {};
-    const groupCounts = {};
+    const groupIndexes: Partial<Record<CornerAssignment, number>> = {};
+    const groupCounts: Partial<Record<CornerAssignment, number>> = {};
 
     for (let i = 0; i < groups.length; i++) {
-      groupCounts[groups[i]] = (groupCounts[groups[i]] || 0) + 1;
+      groupCounts[groups[i]] = (groupCounts[groups[i]] ?? 0) + 1;
     }
 
     const goalX =
@@ -59,14 +84,14 @@ class Formation {
     const attackDir = side == "home" ? 1 : -1;
     for (let j = 0; j < groups.length; j++) {
       const group = groups[j];
-      const groupIndex = groupIndexes[group] || 0;
+      const groupIndex = groupIndexes[group] ?? 0;
       groupIndexes[group] = groupIndex + 1;
-      let x;
-      let depth;
+      let x: number;
+      let depth: number;
       if (group == "box") {
         x =
           goalX +
-          this.lane(groupIndex, groupCounts[group]) *
+          this.lane(groupIndex, groupCounts[group] ?? 0) *
             this.config.restarts.cornerBoxSpacing;
         depth =
           this.config.restarts.cornerBoxDepth +
@@ -74,7 +99,7 @@ class Formation {
       } else if (group == "late") {
         x =
           goalX +
-          this.lane(groupIndex, groupCounts[group]) *
+          this.lane(groupIndex, groupCounts[group] ?? 0) *
             this.config.restarts.cornerBoxSpacing *
             2;
         depth = this.config.restarts.cornerLateDepth;
@@ -96,34 +121,37 @@ class Formation {
     return { positions: result, groups: groups };
   }
 
-  private cornerCoverIndex(teamSize) {
+  private cornerCoverIndex(teamSize: number): number {
     const indexes = this.cornerCoverIndexes(teamSize);
     return indexes.length == 0 ? -1 : indexes[0];
   }
 
-  public cornerCoverIndexes(teamSize) {
+  public cornerCoverIndexes(teamSize: number): number[] {
     const roles = this.rolesForSize(teamSize);
     let outfieldCount = 0;
     for (var i = 0; i < roles.length; i++) {
       if (roles[i] != "goalie") outfieldCount++;
     }
     const coverLimit = Math.min(2, Math.max(0, outfieldCount - 2));
-    const defenders = [];
+    const defenders: number[] = [];
     for (var i = 0; i < roles.length; i++) {
       if (roles[i] == "defender") defenders.push(i);
     }
-    const result = [];
+    const result: number[] = [];
     if (coverLimit >= 1 && defenders.length > 0) result.push(defenders[0]);
     if (coverLimit >= 2 && defenders.length > 1)
       result.push(defenders[defenders.length - 1]);
     return result;
   }
 
-  private cornerAssignments(teamSize, takerIndex) {
+  public cornerAssignments(
+    teamSize: number,
+    takerIndex: number,
+  ): CornerAssignment[] {
     const roles = this.rolesForSize(teamSize);
     const covers = this.cornerCoverIndexes(teamSize);
-    const groups = [];
-    const candidates = [];
+    const groups: CornerAssignment[] = [];
+    const candidates: number[] = [];
     for (let i = 0; i < roles.length; i++) {
       if (roles[i] == "goalie") {
         groups[i] = "goalie";
@@ -170,7 +198,12 @@ class Formation {
     return groups;
   }
 
-  private takeCornerCandidate(candidates, roles, preferences, fromEnd) {
+  private takeCornerCandidate(
+    candidates: number[],
+    roles: FormationRole[],
+    preferences: FormationRole[],
+    fromEnd: boolean,
+  ): number {
     for (let p = 0; p < preferences.length; p++) {
       if (fromEnd) {
         for (let i = candidates.length - 1; i >= 0; i--) {
@@ -184,10 +217,12 @@ class Formation {
         }
       }
     }
-    return candidates.shift();
+    const candidate = candidates.shift();
+    if (candidate == null) throw new Error("No corner candidate available");
+    return candidate;
   }
 
-  public kickoffTakerIndex(teamSize) {
+  public kickoffTakerIndex(teamSize: number): number {
     const roles = this.rolesForSize(teamSize);
     for (let i = 0; i < roles.length; i++) {
       if (roles[i] == "striker") return i;
@@ -195,8 +230,8 @@ class Formation {
     return -1;
   }
 
-  public rolesForSize(teamSize) {
-    const sizes = {
+  public rolesForSize(teamSize: number): FormationRole[] {
+    const sizes: Record<number, FormationRole[]> = {
       1: ["striker"],
       2: ["goalie", "striker"],
       3: ["goalie", "defender", "striker"],
@@ -262,7 +297,7 @@ class Formation {
     return sizes[teamSize] || sizes[Math.max(1, Math.min(11, teamSize))];
   }
 
-  private roleCount(roles, role) {
+  private roleCount(roles: FormationRole[], role: FormationRole): number {
     let count = 0;
     for (let i = 0; i < roles.length; i++) {
       if (roles[i] == role) {
@@ -272,7 +307,13 @@ class Formation {
     return count;
   }
 
-  private positionForRole(state, side, role, index, count) {
+  private positionForRole(
+    state: TeamAiState,
+    side: TeamSide,
+    role: FormationRole,
+    index: number,
+    count: number,
+  ): Vector2 {
     if (role == "goalie") {
       return this.goaliePosition(side);
     }
@@ -316,7 +357,10 @@ class Formation {
     return this.clampToField(new Vector2d(x, y));
   }
 
-  private kickoffSideForState(state, side) {
+  private kickoffSideForState(
+    state: TeamAiState,
+    side: TeamSide,
+  ): TeamSide | null {
     if (state == "kickoffUs") {
       return side;
     }
@@ -326,7 +370,7 @@ class Formation {
     return null;
   }
 
-  private nonKickingStrikerProgress(index, count) {
+  private nonKickingStrikerProgress(index: number, count: number): number {
     const radiusX = this.config.pitch.centerCircleRadiusX || 1;
     const radiusY = this.config.pitch.centerCircleRadiusY || 0;
     const xOffset = this.lane(index, count) * 90;
@@ -340,9 +384,9 @@ class Formation {
     );
   }
 
-  private goaliePosition(side) {
+  private goaliePosition(side: TeamSide): Vector2 {
     const x = this.config.pitch.initialBallPosition.x;
-    let y;
+    let y: number;
     if (side == "home") {
       y = this.config.pitch.goalBottomTopLeft.y - this.config.ai.goalieDistance;
     } else {
@@ -351,14 +395,14 @@ class Formation {
     return this.clampToField(new Vector2d(x, y));
   }
 
-  private lane(index, count) {
+  private lane(index: number, count: number): number {
     if (count <= 1) {
       return 0;
     }
     return index - (count - 1) / 2;
   }
 
-  public clampToField(position) {
+  public clampToField(position: Vector2): Vector2 {
     let x = position.x;
     let y = position.y;
     if (x < this.config.pitch.boxTopLeft.x) x = this.config.pitch.boxTopLeft.x;

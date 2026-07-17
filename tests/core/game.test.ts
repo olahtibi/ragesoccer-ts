@@ -14,8 +14,8 @@ test("Game composes explicit controllers without putting them on Stadium", funct
   assertEqual(fixture.game.teamAis.length, 2);
   assertTrue(fixture.game.humanController !== null);
   assertEqual(fixture.game.restartController, undefined);
-  assertTrue(fixture.game.matchFlow._restartController !== null);
-  assertTrue(fixture.game.matchFlow._boundaryDetector !== null);
+  assertTrue(fixture.game.matchFlow.restartController !== null);
+  assertTrue(fixture.game.matchFlow.boundaryDetector !== null);
   assertTrue(fixture.game.debugTool !== null);
   assertEqual(fixture.game.debugLog, undefined);
   assertEqual(fixture.game.goalDetector, undefined);

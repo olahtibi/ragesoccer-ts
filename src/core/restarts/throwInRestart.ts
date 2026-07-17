@@ -1,18 +1,35 @@
 import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d, Vector3 as Vector3d } from "../../math/vector";
+import type { Vector2 } from "../../math/vector";
+import type {
+  GameContext,
+  RestartRequest,
+  RestartScene,
+  RestartStrategy,
+  TeamAiState,
+} from "../../types";
+import type { Player } from "../../world/player";
+import type { Team } from "../../world/team";
+import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { ThrowInRestart };
 
-class ThrowInRestart {
-  [key: string]: any;
-  public constructor(config) {
+class ThrowInRestart implements RestartStrategy {
+  public readonly config: Configuration;
+  public readonly allowEarlyResume: boolean;
+  public launched: boolean;
+  public taker: Player | null;
+
+  public constructor(config: Configuration) {
     this.config = config;
     this.allowEarlyResume = true;
     this.launched = false;
     this.taker = null;
   }
 
-  private ballPosition(request) {
+  private ballPosition(request: RestartRequest): Vector3d {
+    if (request.position == null || request.boundary == null)
+      throw new Error("Throw-in requires a boundary position");
     const clearance =
       this.config.ball.radius + this.config.restarts.placementClearance;
     const x =
@@ -28,7 +45,10 @@ class ThrowInRestart {
     );
   }
 
-  public createScene(context, request) {
+  public createScene(
+    context: GameContext,
+    request: RestartRequest,
+  ): RestartScene {
     this.launched = false;
     const ballPosition = this.ballPosition(request);
     const offset =
@@ -50,7 +70,11 @@ class ThrowInRestart {
     );
   }
 
-  private findTaker(context, request, ballPosition) {
+  private findTaker(
+    context: GameContext,
+    request: RestartRequest,
+    ballPosition: Vector2,
+  ): Player | null {
     for (let i = 0; i < context.teams.length; i++) {
       if (context.teams[i].side == request.awardedTo) {
         const team = context.teams[i];
@@ -62,25 +86,31 @@ class ThrowInRestart {
     return null;
   }
 
-  public onPositioned(context, request) {
+  public onPositioned(context: GameContext, request: RestartRequest): void {
     if (this.taker == null) return;
     this.taker.facingX = request.boundary == "left" ? 1 : -1;
     this.taker.facingY = 0;
   }
 
-  public teamAiState(team, request) {
+  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
     return RestartPositioning.stateFor("throwIn", team, request);
   }
 
-  public canTeamMove(team, request) {
+  public canTeamMove(team: Team, request: RestartRequest): boolean {
     return team.side == request.awardedTo;
   }
 
-  public resume(context, request, direction) {
+  public resume(
+    context: GameContext,
+    request: RestartRequest,
+    direction: Vector2 | null,
+  ): boolean {
+    if (request.boundary == null)
+      throw new Error("Throw-in requires a boundary");
     const inwardX = request.boundary == "left" ? 1 : -1;
     const attackY = request.awardedTo == "home" ? -1 : 1;
-    let dx;
-    let dy;
+    let dx: number;
+    let dy: number;
     if (request.awardedTo == "away" || direction == null) {
       dx = inwardX;
       dy = attackY;
@@ -103,9 +133,9 @@ class ThrowInRestart {
     return true;
   }
 
-  public enforceRules() {}
+  public enforceRules(): void {}
 
-  public isComplete(context) {
+  public isComplete(context: GameContext): boolean {
     if (!this.launched) return false;
     const velocity = context.ball.velocity;
     const minSpeed = this.config.physics.minVelocity || 0;
