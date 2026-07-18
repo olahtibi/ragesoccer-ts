@@ -25,7 +25,7 @@ test("Options page loads the typed menu entry and preserves all match options", 
   ]) {
     assertTrue(menu.includes(id), `Missing option ${id}`);
   }
-  assertTrue(menu.includes('"Novices", "Novices"'));
+  assertTrue(menu.includes('"Red Novices", "Blue Novices"'));
   assertTrue(menu.includes('"Red Titans", "Blue Titans"'));
   assertTrue(menu.includes("game.html?"));
   assertTrue(styles.includes("@media (max-width: 600px)"));

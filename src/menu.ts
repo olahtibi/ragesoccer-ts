@@ -1,7 +1,7 @@
 import "./styles/menu.css";
 
 const strengths = [
-  ["Novices", "Novices"],
+  ["Red Novices", "Blue Novices"],
   ["Crimson Rovers", "Azure Rovers"],
   ["Scarlet United", "Cobalt United"],
   ["Ruby City", "Navy City"],
