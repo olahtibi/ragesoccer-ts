@@ -104,10 +104,11 @@ export function touchEventAt(clientX: number, clientY: number): TouchEvent {
 
 export function completePositioning(fixture: TestFixture): void {
   const controller = fixture.positioningController;
-  for (const sceneTeam of controller.sceneTeams) {
-    for (let i = 0; i < sceneTeam.players.length; i++) {
-      sceneTeam.players[i].position.x = sceneTeam.positions[i].x;
-      sceneTeam.players[i].position.y = sceneTeam.positions[i].y;
+  const placements = controller.placements();
+  if (placements == null) return;
+  for (const side of TEAM_SIDES) {
+    for (const placement of placements[side]) {
+      placement.player.placeAt(placement.target);
     }
   }
   vi.spyOn(fixture.game.camera, "hasArrivedAtFocus").mockReturnValue(true);
@@ -121,9 +122,7 @@ export function advancePhysics(
 ): void {
   vi.useFakeTimers();
   vi.setSystemTime(fixture.physics.lastUpdated + deltaSeconds * 1000);
-  if (mode === "playersOnly") fixture.physics.updatePlayersOnly();
-  else if (mode === "ballOnly") fixture.physics.updateBallOnly();
-  else fixture.physics.update();
+  fixture.physics.update(mode);
 }
 
 export function updateTeamAis(fixture: TestFixture): void {

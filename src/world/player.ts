@@ -33,7 +33,7 @@ class Player {
   public readonly spriteSourceRowHeight: number;
   public phaseIndex: number;
   public stepDistance: number;
-  public teamSide: TeamSide;
+  public readonly teamSide: TeamSide;
   private readonly stepPxPerPhase: number;
   private readonly spritePhases: number;
   private readonly lastAnimationPosition: Vector2d;
@@ -41,18 +41,15 @@ class Player {
   public constructor(
     imgPlayer: HTMLImageElement,
     position: Vector2d,
-    playerSpriteWidth: number,
-    playerSpriteHeight: number,
-    playerSpriteCenterX: number,
-    playerSpriteCenterY: number,
-    animationConfig: Configuration["player"],
+    teamSide: TeamSide,
+    playerConfig: Configuration["player"],
   ) {
     this.imgPlayer = imgPlayer;
     this.position = position;
-    this.playerSpriteWidth = playerSpriteWidth;
-    this.playerSpriteHeight = playerSpriteHeight;
-    this.playerSpriteCenterX = playerSpriteCenterX;
-    this.playerSpriteCenterY = playerSpriteCenterY;
+    this.playerSpriteWidth = playerConfig.spriteWidth;
+    this.playerSpriteHeight = playerConfig.spriteHeight;
+    this.playerSpriteCenterX = playerConfig.spriteCenterX;
+    this.playerSpriteCenterY = playerConfig.spriteCenterY;
     this.facingX = 0;
     this.facingY = -1;
     this.velocity = new Vector2d(0, 0);
@@ -66,22 +63,31 @@ class Player {
     this.animationIdleSeconds = 0;
     this.animationLastTimeMs = null;
     this.animationDirectionResponseRate =
-      animationConfig.animationDirectionResponseRate || 18;
+      playerConfig.animationDirectionResponseRate;
     this.animationDirectionConfidenceThreshold =
-      animationConfig.animationDirectionConfidenceThreshold || 0.75;
-    this.animationIdleGraceSeconds =
-      animationConfig.animationIdleGraceSeconds || 0.05;
-    this.animationMaxDeltaSeconds =
-      animationConfig.animationMaxDeltaSeconds || 0.1;
-    this.spriteSourceRowHeight = animationConfig.spriteSourceRowHeight || 18;
-    this.stepPxPerPhase = animationConfig.stepPxPerPhase;
-    this.spritePhases = animationConfig.spritePhases;
+      playerConfig.animationDirectionConfidenceThreshold;
+    this.animationIdleGraceSeconds = playerConfig.animationIdleGraceSeconds;
+    this.animationMaxDeltaSeconds = playerConfig.animationMaxDeltaSeconds;
+    this.spriteSourceRowHeight = playerConfig.spriteSourceRowHeight;
+    this.stepPxPerPhase = playerConfig.stepPxPerPhase;
+    this.spritePhases = playerConfig.spritePhases;
     this.lastAnimationPosition = new Vector2d(this.position.x, this.position.y);
     // Walk-cycle state advances with rendered travel rather than wall-clock
     // time, so the animation naturally freezes when the player does.
     this.phaseIndex = 0;
     this.stepDistance = 0;
-    this.teamSide = "home";
+    this.teamSide = teamSide;
+  }
+
+  public stop(): void {
+    this.velocity.x = 0;
+    this.velocity.y = 0;
+  }
+
+  public placeAt(position: Vector2d): void {
+    this.position.x = position.x;
+    this.position.y = position.y;
+    this.stop();
   }
 
   public updateFacing(): void {

@@ -81,7 +81,7 @@ test("DebugTool snapshot includes ball, players, and AI commands states and targ
   setup.fixture.ball.position.x = 12.345;
   setup.fixture.ball.velocity.y = -6.789;
   setup.fixture.ball.lastTouchedBy = "away";
-  setup.game.matchFlow.state = "normalPlay";
+  setup.game.matchFlow.enterNormalPlayForTesting();
   setup.fixture.ball.position.x = setup.fixture.awayPlayers[0].position.x + 20;
   setup.fixture.ball.position.y = setup.fixture.awayPlayers[0].position.y;
   for (const side of TEAM_SIDES) {
@@ -121,7 +121,6 @@ test("DebugTool snapshot includes ball, players, and AI commands states and targ
 test("DebugTool draws public AI targets from current player positions", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 2 });
   var tool = new DebugTool(fixture.config);
-  fixture.awayTeamAi.setRestartState("attack");
   fixture.awayTeamAi.update(0.1, { restart: null });
   var calls: string[] = [];
   var ctx = canvasContext({

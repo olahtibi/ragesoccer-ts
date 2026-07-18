@@ -72,7 +72,7 @@ class BoundaryDetector {
   }
 
   private bounds(): Bounds {
-    const radius = this.ball.ballRadius || this.config.ball.radius || 0;
+    const radius = this.ball.ballRadius;
     return {
       left: this.config.pitch.fieldLeft - radius,
       right: this.config.pitch.fieldRight + radius,

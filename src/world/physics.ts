@@ -1,7 +1,18 @@
 import { math as MathLib } from "../math/math";
+import { Vector2 } from "../math/vector";
 import type { Configuration } from "../core/configuration";
 import type { Stadium } from "./stadium";
 export { Physics };
+
+export type PhysicsUpdateMode = "full" | "playersOnly" | "ballOnly";
+
+interface CollisionSegment {
+  name: string;
+  axis: "x" | "y";
+  fixed: number;
+  start: number;
+  end: number;
+}
 
 class Physics {
   public readonly config: Configuration;
@@ -28,36 +39,13 @@ class Physics {
     this.lastDt = 0;
   }
 
-  public update(): void {
+  public update(mode: PhysicsUpdateMode): void {
     const currentTime = new Date().getTime();
     const dt = this.computeDt(currentTime);
-    if (dt == null) {
-      return;
-    }
     this.lastDt = dt;
-    this.updatePlayerPositions(dt);
-    this.resolveBallPlayerContacts();
-    this.updateBallPosition(dt);
-    this.updateStats(currentTime);
-  }
-
-  public updatePlayersOnly(): void {
-    const currentTime = new Date().getTime();
-    const dt = this.computeDt(currentTime);
-    if (dt == null) {
-      return;
-    }
-    this.lastDt = dt;
-    this.updatePlayerPositions(dt);
-    this.updateStats(currentTime);
-  }
-
-  public updateBallOnly(): void {
-    const currentTime = new Date().getTime();
-    const dt = this.computeDt(currentTime);
-    if (dt == null) return;
-    this.lastDt = dt;
-    this.updateBallPosition(dt);
+    if (mode != "ballOnly") this.updatePlayerPositions(dt);
+    if (mode == "full") this.resolveBallPlayerContacts();
+    if (mode != "playersOnly") this.updateBallPosition(dt);
     this.updateStats(currentTime);
   }
 
@@ -139,8 +127,8 @@ class Physics {
         ny = dy / d;
       } else {
         // Degenerate overlap: fall back to the direction the player is facing.
-        const fx = p.facingX || 0;
-        const fy = p.facingY || -1;
+        const fx = p.facingX;
+        const fy = p.facingY;
         const fallback = MathLib.normalizeVector(fx, fy, 0, -1);
         nx = fallback.x;
         ny = fallback.y;
@@ -236,148 +224,148 @@ class Physics {
       ball.velocity.y = 0;
     }
 
-    const moveArray = [ball.velocity.x * dt, ball.velocity.y * dt];
+    const movement = new Vector2(ball.velocity.x * dt, ball.velocity.y * dt);
 
     if (!this.config.restarts.outOfPlayEnabled) {
-      this.checkBoxCollision(moveArray);
+      this.processCollisions(movement, this.fieldWalls());
     }
-    this.checkGoalCollision(moveArray);
+    this.processCollisions(movement, this.goalWalls());
 
-    ball.position.x += moveArray[0];
-    ball.position.y += moveArray[1];
+    ball.position.x += movement.x;
+    ball.position.y += movement.y;
   }
 
-  // Reflect the ball off a vertical-normal wall (horizontal surface, ball crossing pY).
-  private reflectY(moveArray: number[]): void {
+  private reflectY(movement: Vector2): void {
     const e = this.config.physics.wallRestitution;
-    moveArray[1] = -moveArray[1] * e;
+    movement.y = -movement.y * e;
     this.stadium.ball.velocity.y = -this.stadium.ball.velocity.y * e;
   }
 
-  // Reflect the ball off a horizontal-normal wall (vertical surface, ball crossing pX).
-  private reflectX(moveArray: number[]): void {
+  private reflectX(movement: Vector2): void {
     const e = this.config.physics.wallRestitution;
-    moveArray[0] = -moveArray[0] * e;
+    movement.x = -movement.x * e;
     this.stadium.ball.velocity.x = -this.stadium.ball.velocity.x * e;
   }
 
-  private checkGoalCollision(moveArray: number[]): void {
-    if (
-      MathLib.isIntersectedVertically(
-        this.config.pitch.goalTopTopLeft.x,
-        this.config.pitch.goalTopTopRight.x,
-        this.config.pitch.goalTopTopLeft.y,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[1],
-      )
-    ) {
-      this.reflectY(moveArray);
-    } else if (
-      MathLib.isIntersectedVertically(
-        this.config.pitch.goalBottomBottomLeft.x,
-        this.config.pitch.goalBottomBottomRight.x,
-        this.config.pitch.goalBottomBottomLeft.y,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[1],
-      )
-    ) {
-      this.reflectY(moveArray);
-    }
-    if (
-      MathLib.isIntersectedHorizontally(
-        this.config.pitch.goalTopTopLeft.y,
-        this.config.pitch.goalTopBottomLeft.y,
-        this.config.pitch.goalTopTopLeft.x,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[0],
-      )
-    ) {
-      this.reflectX(moveArray);
-    } else if (
-      MathLib.isIntersectedHorizontally(
-        this.config.pitch.goalTopTopRight.y,
-        this.config.pitch.goalTopBottomRight.y,
-        this.config.pitch.goalTopTopRight.x,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[0],
-      )
-    ) {
-      this.reflectX(moveArray);
-    } else if (
-      MathLib.isIntersectedHorizontally(
-        this.config.pitch.goalBottomTopLeft.y,
-        this.config.pitch.goalBottomBottomLeft.y,
-        this.config.pitch.goalBottomTopLeft.x,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[0],
-      )
-    ) {
-      this.reflectX(moveArray);
-    } else if (
-      MathLib.isIntersectedHorizontally(
-        this.config.pitch.goalBottomTopRight.y,
-        this.config.pitch.goalBottomBottomRight.y,
-        this.config.pitch.goalBottomTopRight.x,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[0],
-      )
-    ) {
-      this.reflectX(moveArray);
+  private processCollisions(
+    movement: Vector2,
+    segments: CollisionSegment[],
+  ): void {
+    let reflectedX = false;
+    let reflectedY = false;
+    const ball = this.stadium.ball;
+    for (const segment of segments) {
+      if (segment.axis == "y" && !reflectedY) {
+        if (
+          MathLib.isIntersectedVertically(
+            segment.start,
+            segment.end,
+            segment.fixed,
+            ball.position.x,
+            ball.position.y,
+            movement.y,
+          )
+        ) {
+          this.reflectY(movement);
+          reflectedY = true;
+        }
+      } else if (segment.axis == "x" && !reflectedX) {
+        if (
+          MathLib.isIntersectedHorizontally(
+            segment.start,
+            segment.end,
+            segment.fixed,
+            ball.position.x,
+            ball.position.y,
+            movement.x,
+          )
+        ) {
+          this.reflectX(movement);
+          reflectedX = true;
+        }
+      }
     }
   }
 
-  private checkBoxCollision(moveArray: number[]): void {
-    if (
-      MathLib.isIntersectedVertically(
-        this.config.pitch.boxTopLeft.x,
-        this.config.pitch.boxTopRight.x,
-        this.config.pitch.boxTopLeft.y,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[1],
-      )
-    ) {
-      this.reflectY(moveArray);
-    } else if (
-      MathLib.isIntersectedVertically(
-        this.config.pitch.boxBottomLeft.x,
-        this.config.pitch.boxBottomRight.x,
-        this.config.pitch.boxBottomLeft.y,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[1],
-      )
-    ) {
-      this.reflectY(moveArray);
-    }
-    if (
-      MathLib.isIntersectedHorizontally(
-        this.config.pitch.boxTopLeft.y,
-        this.config.pitch.boxBottomLeft.y,
-        this.config.pitch.boxTopLeft.x,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[0],
-      )
-    ) {
-      this.reflectX(moveArray);
-    } else if (
-      MathLib.isIntersectedHorizontally(
-        this.config.pitch.boxTopRight.y,
-        this.config.pitch.boxBottomRight.y,
-        this.config.pitch.boxTopRight.x,
-        this.stadium.ball.position.x,
-        this.stadium.ball.position.y,
-        moveArray[0],
-      )
-    ) {
-      this.reflectX(moveArray);
-    }
+  private fieldWalls(): CollisionSegment[] {
+    const p = this.config.pitch;
+    return [
+      {
+        name: "fieldTop",
+        axis: "y",
+        fixed: p.boxTopLeft.y,
+        start: p.boxTopLeft.x,
+        end: p.boxTopRight.x,
+      },
+      {
+        name: "fieldBottom",
+        axis: "y",
+        fixed: p.boxBottomLeft.y,
+        start: p.boxBottomLeft.x,
+        end: p.boxBottomRight.x,
+      },
+      {
+        name: "fieldLeft",
+        axis: "x",
+        fixed: p.boxTopLeft.x,
+        start: p.boxTopLeft.y,
+        end: p.boxBottomLeft.y,
+      },
+      {
+        name: "fieldRight",
+        axis: "x",
+        fixed: p.boxTopRight.x,
+        start: p.boxTopRight.y,
+        end: p.boxBottomRight.y,
+      },
+    ];
+  }
+
+  private goalWalls(): CollisionSegment[] {
+    const p = this.config.pitch;
+    return [
+      {
+        name: "topGoalBack",
+        axis: "y",
+        fixed: p.goalTopTopLeft.y,
+        start: p.goalTopTopLeft.x,
+        end: p.goalTopTopRight.x,
+      },
+      {
+        name: "bottomGoalBack",
+        axis: "y",
+        fixed: p.goalBottomBottomLeft.y,
+        start: p.goalBottomBottomLeft.x,
+        end: p.goalBottomBottomRight.x,
+      },
+      {
+        name: "topGoalLeft",
+        axis: "x",
+        fixed: p.goalTopTopLeft.x,
+        start: p.goalTopTopLeft.y,
+        end: p.goalTopBottomLeft.y,
+      },
+      {
+        name: "topGoalRight",
+        axis: "x",
+        fixed: p.goalTopTopRight.x,
+        start: p.goalTopTopRight.y,
+        end: p.goalTopBottomRight.y,
+      },
+      {
+        name: "bottomGoalLeft",
+        axis: "x",
+        fixed: p.goalBottomTopLeft.x,
+        start: p.goalBottomTopLeft.y,
+        end: p.goalBottomBottomLeft.y,
+      },
+      {
+        name: "bottomGoalRight",
+        axis: "x",
+        fixed: p.goalBottomTopRight.x,
+        start: p.goalBottomTopRight.y,
+        end: p.goalBottomBottomRight.y,
+      },
+    ];
   }
 }

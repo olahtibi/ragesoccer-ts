@@ -144,7 +144,9 @@ test("Opponent kickoff ignores input and starts after its configured delay", fun
 
 test("Keyboard direction executes a human throw-in and clamps it inward", function () {
   var setupResult = setup();
-  setupResult.game.beginRestart("throwIn", "home", {
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
     boundary: "left",
     position: new Vector2d(
       setupResult.fixture.config.pitch.fieldLeft,
@@ -162,7 +164,9 @@ test("Keyboard direction executes a human throw-in and clamps it inward", functi
 
 test("Touch direction executes a human throw-in and clamps it inward", function () {
   var setupResult = setup();
-  setupResult.game.beginRestart("throwIn", "home", {
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
     boundary: "right",
     position: new Vector2d(
       setupResult.fixture.config.pitch.fieldRight,
@@ -185,7 +189,9 @@ test("Touch direction executes a human throw-in and clamps it inward", function 
 
 test("Touch executes a throw-in when the taker is ready before positioning completes", function () {
   var setupResult = setup({ homeTeamSize: 4, awayTeamSize: 4 });
-  setupResult.game.beginRestart("throwIn", "home", {
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
     boundary: "right",
     position: new Vector2d(
       setupResult.fixture.config.pitch.fieldRight,
@@ -193,14 +199,13 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
     ),
   });
   var controller = setupResult.positioningController;
-  assertTrue(controller.readyPlayer !== null);
-  for (var t = 0; t < controller.sceneTeams.length; t++) {
-    for (var i = 0; i < controller.sceneTeams[t].players.length; i++) {
-      if (controller.sceneTeams[t].players[i] === controller.readyPlayer) {
-        controller.readyPlayer.position.x =
-          controller.sceneTeams[t].positions[i].x;
-        controller.readyPlayer.position.y =
-          controller.sceneTeams[t].positions[i].y;
+  var readyPlayer = controller.readyPlayer();
+  var placements = controller.placements();
+  assertTrue(readyPlayer !== null && placements !== null);
+  for (const side of ["home", "away"] as const) {
+    for (const placement of placements[side]) {
+      if (placement.player === readyPlayer) {
+        readyPlayer.placeAt(placement.target);
       }
     }
   }
@@ -232,7 +237,7 @@ test("C awards a home corner on the ball side when debugging is enabled", functi
   var setupResult = setup();
   setupResult.fixture.config.debug.enabled = true;
   setupResult.restartController.clear();
-  setupResult.game.matchFlow.state = "normalPlay";
+  setupResult.game.matchFlow.enterNormalPlayForTesting();
   setupResult.fixture.ball.position.x =
     setupResult.fixture.config.pitch.fieldRight - 20;
 
@@ -240,15 +245,16 @@ test("C awards a home corner on the ball side when debugging is enabled", functi
 
   assertEqual(setupResult.restartController.type(), "corner");
   assertEqual(setupResult.restartController.phase(), "positioning");
-  assertTrue(setupResult.positioningController.ballPosition !== null);
+  var ballPosition = setupResult.positioningController.ballPosition();
+  assertTrue(ballPosition !== null);
   assertEqual(
-    setupResult.positioningController.ballPosition.x,
+    ballPosition.x,
     setupResult.fixture.config.pitch.fieldRight -
       setupResult.fixture.config.ball.radius -
       setupResult.fixture.config.restarts.placementClearance,
   );
   assertEqual(
-    setupResult.positioningController.ballPosition.y,
+    ballPosition.y,
     setupResult.fixture.config.pitch.fieldTop +
       setupResult.fixture.config.ball.radius +
       setupResult.fixture.config.restarts.placementClearance,
@@ -259,7 +265,7 @@ test("C corner diagnostic is disabled when debugging is disabled", function () {
   var setupResult = setup();
   setupResult.fixture.config.debug.enabled = false;
   setupResult.restartController.clear();
-  setupResult.game.matchFlow.state = "normalPlay";
+  setupResult.game.matchFlow.enterNormalPlayForTesting();
 
   setupResult.input.handleKey({ keyCode: 67, type: "keydown" });
 
@@ -273,13 +279,12 @@ test("Restart positioning selects the newly closest human player on completion",
     awayTeamSize: 4,
     kickoffSide: "away",
   });
-  setupResult.game.beginRestart("kickoff", "home");
+  setupResult.game.beginRestart({ type: "kickoff", awardedTo: "home" });
   var controller = setupResult.positioningController;
-  for (var i = 0; i < controller.sceneTeams[0].players.length; i++) {
-    controller.sceneTeams[0].players[i].position.x =
-      controller.sceneTeams[0].positions[i].x;
-    controller.sceneTeams[0].players[i].position.y =
-      controller.sceneTeams[0].positions[i].y;
+  var placements = controller.placements();
+  assertTrue(placements !== null);
+  for (const placement of placements.home) {
+    placement.player.placeAt(placement.target);
   }
 
   completePositioning(setupResult.fixture);
@@ -294,13 +299,13 @@ test("Slash pauses and resumes while preserving restart positioning", function (
   var setupResult = setup();
   setupResult.fixture.config.debug.enabled = true;
   setupResult.game.debugTool.dump = function () {};
-  setupResult.game.beginRestart("kickoff", "home");
+  setupResult.game.beginRestart({ type: "kickoff", awardedTo: "home" });
 
   setupResult.input.handleKey({ keyCode: 191, type: "keydown" });
-  assertEqual(setupResult.game.matchFlow.state, "paused");
+  assertEqual(setupResult.game.matchFlow.snapshot().kind, "paused");
 
   setupResult.input.handleKey({ keyCode: 191, type: "keydown" });
-  assertEqual(setupResult.game.matchFlow.state, "restart");
+  assertEqual(setupResult.game.matchFlow.snapshot().kind, "restart");
   assertEqual(setupResult.restartController.phase(), "positioning");
 });
 

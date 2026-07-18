@@ -85,20 +85,8 @@ export const math = {
     return new Vector2(direction.x * speed, direction.y * speed);
   },
 
-  computeVelocityForTarget(
-    position: Vector2,
-    target: Vector2,
-    speed: number,
-  ): Vector2 {
-    return this.velocityTowards(position, target, speed);
-  },
-
   computeDistance(a: Vector2, b: Vector2): number {
     return Math.sqrt(this.distanceSquared(a, b));
-  },
-
-  inside(corner1: Vector2, corner2: Vector2, point: Vector2): boolean {
-    return this.pointInRectangle(point, corner1, corner2);
   },
 
   isIntersectedVertically(

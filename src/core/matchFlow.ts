@@ -3,7 +3,6 @@ import type { TeamAiUpdateContext } from "../ai/teamAi";
 import type {
   BoundaryEvent,
   GameContext,
-  MatchState,
   RestartPhase,
   RestartRequest,
   RestartType,
@@ -21,18 +20,19 @@ import type {
 
 export { MatchFlow };
 
-interface OutOfPlaySession {
-  event: BoundaryEvent;
-  elapsed: number;
-}
+type ActiveMatchFlowSession =
+  | { kind: "normalPlay" }
+  | { kind: "outOfPlay"; event: BoundaryEvent; elapsed: number }
+  | { kind: "restart" };
+
+export type MatchFlowSession =
+  ActiveMatchFlowSession | { kind: "paused"; previous: ActiveMatchFlowSession };
 
 class MatchFlow {
   public readonly restartController: RestartController;
   public readonly goalDetector: GoalDetector;
   public readonly boundaryDetector: BoundaryDetector;
-  private outOfPlay: OutOfPlaySession | null;
-  public state: MatchState;
-  public stateBeforePause: MatchState | null;
+  private session: MatchFlowSession;
 
   public constructor(
     restartController: RestartController,
@@ -42,9 +42,7 @@ class MatchFlow {
     this.restartController = restartController;
     this.goalDetector = goalDetector;
     this.boundaryDetector = boundaryDetector;
-    this.outOfPlay = null;
-    this.state = "normalPlay";
-    this.stateBeforePause = null;
+    this.session = { kind: "normalPlay" };
   }
 
   public beginRestart(
@@ -52,9 +50,10 @@ class MatchFlow {
     context: GameContext,
     options: RestartBeginOptions | null = null,
   ): boolean {
-    if (this.state == "paused" || this.state == "outOfPlay") return false;
+    if (this.session.kind == "paused" || this.session.kind == "outOfPlay")
+      return false;
     if (
-      this.state == "restart" &&
+      this.session.kind == "restart" &&
       this.restartController.phase() == "positioning"
     )
       return false;
@@ -62,72 +61,73 @@ class MatchFlow {
   }
 
   public pause(): void {
-    if (this.state == "paused") return;
-    this.stateBeforePause = this.state;
-    this.state = "paused";
+    if (this.session.kind == "paused") return;
+    this.session = { kind: "paused", previous: this.session };
   }
 
   public resume(): void {
-    if (this.state != "paused") return;
-    this.state = this.stateBeforePause || "normalPlay";
-    this.stateBeforePause = null;
+    if (this.session.kind != "paused") return;
+    this.session = this.session.previous;
   }
 
   public resumeFromInput(
     context: GameContext,
     direction: Vector2 | null,
   ): boolean {
-    if (this.state == "restart") {
+    if (this.session.kind == "restart") {
       return this.restartController.resumeFromInput(context, direction);
     }
-    return this.state == "normalPlay";
+    return this.session.kind == "normalPlay";
   }
 
   public simulationMode(): SimulationMode {
-    if (this.state == "paused") return "none";
-    if (this.state == "normalPlay") return "full";
-    if (this.state == "outOfPlay") return "ballOnly";
+    if (this.session.kind == "paused") return "none";
+    if (this.session.kind == "normalPlay") return "full";
+    if (this.session.kind == "outOfPlay") return "ballOnly";
     return this.restartController.simulationMode();
   }
 
   public updateBeforePhysics(context: GameContext): void {
-    if (this.state != "restart") return;
+    if (this.session.kind != "restart") return;
     this.restartController.updateBeforePhysics(context);
   }
 
   public updateAfterPhysics(context: GameContext, deltaSeconds: number): void {
-    if (this.state == "outOfPlay") {
+    if (this.session.kind == "outOfPlay") {
       this.updateOutOfPlay(context, deltaSeconds);
       return;
     }
-    if (this.state != "restart") return;
+    if (this.session.kind != "restart") return;
     this.restartController.updateAfterPhysics(context, deltaSeconds);
     if (this.restartController.isComplete()) {
-      this.state = "normalPlay";
+      this.session = { kind: "normalPlay" };
       this.restartController.clear();
     }
   }
 
   public isPaused(): boolean {
-    return this.state == "paused";
+    return this.session.kind == "paused";
   }
 
   public isRestartActive(): boolean {
-    return this.state == "restart";
+    return this.session.kind == "restart";
   }
 
   public canResumeFromInput(): boolean {
     return (
-      this.state == "restart" && this.restartController.canResumeFromInput()
+      this.session.kind == "restart" &&
+      this.restartController.canResumeFromInput()
     );
   }
 
   public canTeamMove(side: TeamSide): boolean {
-    return this.state != "restart" || this.restartController.canTeamMove(side);
+    return (
+      this.session.kind != "restart" || this.restartController.canTeamMove(side)
+    );
   }
 
   public teamAiContext(side: TeamSide): TeamAiUpdateContext {
-    if (this.state != "restart") return { restart: null };
+    if (this.session.kind != "restart") return { restart: null };
     const sequence = this.restartController.sequence();
     const state = this.restartController.teamAiState(side);
     if (sequence == null || state == null) return { restart: null };
@@ -153,8 +153,9 @@ class MatchFlow {
 
   public isOutOfPlay(): boolean {
     return (
-      this.state == "outOfPlay" ||
-      (this.state == "paused" && this.stateBeforePause == "outOfPlay")
+      this.session.kind == "outOfPlay" ||
+      (this.session.kind == "paused" &&
+        this.session.previous.kind == "outOfPlay")
     );
   }
 
@@ -164,7 +165,7 @@ class MatchFlow {
   }
 
   public detectGoal(context: GameContext): boolean {
-    if (this.state != "normalPlay") return false;
+    if (this.session.kind != "normalPlay") return false;
     const scoredBy = this.goalDetector.update();
     if (scoredBy == null) return false;
 
@@ -180,7 +181,8 @@ class MatchFlow {
   }
 
   public detectOutOfPlay(context: GameContext): boolean {
-    if (this.state == "paused" || this.state == "outOfPlay") return false;
+    if (this.session.kind == "paused" || this.session.kind == "outOfPlay")
+      return false;
     const event = this.boundaryDetector.update();
     if (event == null) return false;
     if (event.lastTouchedBy == null) {
@@ -189,9 +191,8 @@ class MatchFlow {
       return false;
     }
 
-    this.outOfPlay = { event: event, elapsed: 0 };
+    this.session = { kind: "outOfPlay", event, elapsed: 0 };
     this.stopPlayers(context.stadium.players);
-    this.state = "outOfPlay";
     return true;
   }
 
@@ -203,41 +204,43 @@ class MatchFlow {
     options: RestartBeginOptions | null = null,
   ): boolean {
     if (!this.restartController.begin(request, context, options)) return false;
-    this.state = "restart";
+    this.session = { kind: "restart" };
     return true;
   }
 
   private restoreBall(ball: Ball, position: Vector2): void {
-    ball.position.x = position.x;
-    ball.position.y = position.y;
-    ball.position.z = 0;
-    ball.velocity.x = 0;
-    ball.velocity.y = 0;
-    ball.velocity.z = 0;
+    ball.placeAt(position);
   }
 
   private stopPlayers(players: Player[]): void {
     for (let i = 0; i < players.length; i++) {
-      players[i].velocity.x = 0;
-      players[i].velocity.y = 0;
+      players[i].stop();
     }
   }
 
   private updateOutOfPlay(context: GameContext, deltaSeconds: number): boolean {
-    if (this.outOfPlay == null) return false;
-    this.outOfPlay.elapsed += deltaSeconds || 0;
-    if (this.outOfPlay.elapsed < context.config.restarts.outOfPlayDelaySeconds)
+    if (this.session.kind != "outOfPlay") return false;
+    this.session.elapsed += deltaSeconds;
+    if (this.session.elapsed < context.config.restarts.outOfPlayDelaySeconds)
       return false;
     return this.beginOutOfPlayRestart(context);
   }
 
   private beginOutOfPlayRestart(context: GameContext): boolean {
-    if (this.outOfPlay == null) return false;
-    const event = this.outOfPlay.event;
+    if (this.session.kind != "outOfPlay") return false;
+    const event = this.session.event;
     const request = this.restartRequestForBoundary(event);
     if (!this.startRestart(request, context)) return false;
-    this.outOfPlay = null;
     return true;
+  }
+
+  public enterNormalPlayForTesting(): void {
+    this.restartController.clear();
+    this.session = { kind: "normalPlay" };
+  }
+
+  public snapshot(): MatchFlowSession {
+    return this.session;
   }
 
   private restartRequestForBoundary(event: BoundaryEvent): RestartRequest {
@@ -257,11 +260,27 @@ class MatchFlow {
         awardedTo = attackingSide;
       }
     }
-    return {
-      type: type,
-      awardedTo: awardedTo,
-      boundary: event.boundary,
-      position: event.position,
-    };
+    if (type == "throwIn") {
+      if (event.boundary != "left" && event.boundary != "right") {
+        throw new Error("Throw-in requires a touchline boundary");
+      }
+      return {
+        type,
+        awardedTo,
+        boundary: event.boundary,
+        position: event.position,
+      };
+    }
+    if (event.boundary != "top" && event.boundary != "bottom") {
+      throw new Error("Goal-line restart requires a goal-line boundary");
+    }
+    return type == "corner"
+      ? {
+          type,
+          awardedTo,
+          boundary: event.boundary,
+          position: event.position,
+        }
+      : { type, awardedTo, boundary: event.boundary };
   }
 }

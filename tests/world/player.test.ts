@@ -1,5 +1,21 @@
 import { assertEqual, assertNear, test } from "../testlib";
 import { advancePhysics, canvasContext, makeFixture } from "../helpers";
+import { Vector2 } from "../../src/math/vector";
+
+test("Player owns readonly team identity and placement operations", function () {
+  var fixture = makeFixture();
+  var player = fixture.playerAway;
+  player.velocity.x = 12;
+  player.velocity.y = -7;
+
+  player.placeAt(new Vector2(123, 456));
+
+  assertEqual(player.teamSide, "away");
+  assertEqual(player.position.x, 123);
+  assertEqual(player.position.y, 456);
+  assertEqual(player.velocity.x, 0);
+  assertEqual(player.velocity.y, 0);
+});
 
 test("Player updateFacing maps movement vectors", function () {
   var fixture = makeFixture();

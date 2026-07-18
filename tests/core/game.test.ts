@@ -42,7 +42,7 @@ test("Game update contains no kickoff-specific branch", function () {
 test("Full simulation updates AI human input physics restart and score in order", function () {
   var fixture = makeFixture();
   var order: string[] = [];
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.game.sides.home.ai.update = function () {
     order.push("ai");
   };
@@ -75,7 +75,7 @@ test("Full simulation updates AI human input physics restart and score in order"
 test("A goal result takes priority over out-of-play detection", function () {
   var fixture = makeFixture();
   var outUpdates = 0;
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.game.physics.update = function () {};
   fixture.goalDetector.update = function () {
     return "home";
@@ -94,15 +94,15 @@ test("A goal result takes priority over out-of-play detection", function () {
 test("Positioning simulation updates its controller around player-only physics", function () {
   var fixture = makeFixture();
   var order: string[] = [];
-  fixture.game.beginRestart("kickoff", "home");
+  fixture.game.beginRestart({ type: "kickoff", awardedTo: "home" });
   fixture.game.matchFlow.updateBeforePhysics = function () {
     order.push("before");
   };
   fixture.restartController.updateBeforePhysics = function () {
     order.push("direct");
   };
-  fixture.game.physics.updatePlayersOnly = function () {
-    order.push("players");
+  fixture.game.physics.update = function (mode) {
+    if (mode == "playersOnly") order.push("players");
   };
   fixture.game.matchFlow.updateAfterPhysics = function () {
     order.push("after");
@@ -152,7 +152,7 @@ test("Game renders AI debug through DebugTool only while paused", function () {
 test("A home goal updates the score and starts an away kickoff once", function () {
   var fixture = makeFixture();
   fixture.restartController.clear();
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.ball.position.x = 336;
   fixture.ball.position.y = 100;
 
@@ -171,7 +171,7 @@ test("A home goal updates the score and starts an away kickoff once", function (
 test("An away goal updates the score and starts a home kickoff", function () {
   var fixture = makeFixture();
   fixture.restartController.clear();
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.ball.position.x = 336;
   fixture.ball.position.y = 758;
 
@@ -189,7 +189,7 @@ test("An away goal updates the score and starts a home kickoff", function () {
 test("A home goal kickoff waits for fresh input after positioning", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
   fixture.restartController.clear();
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.ball.position.x = 336;
   fixture.ball.position.y = 758;
 
@@ -202,7 +202,7 @@ test("A home goal kickoff waits for fresh input after positioning", function () 
 
 test("An out-of-play ball continues flying while players remain frozen", function () {
   var fixture = makeFixture();
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.ball.lastTouchedBy = "home";
   fixture.ball.position.x =
     fixture.config.pitch.fieldRight + fixture.config.ball.radius + 1;
@@ -211,9 +211,11 @@ test("An out-of-play ball continues flying while players remain frozen", functio
   fixture.game.matchFlow.detectOutOfPlay(fixture.game.context());
   var ballX = fixture.ball.position.x;
   var playerX = fixture.playerHome.position.x;
-  fixture.physics.updateBallOnly = function () {
-    fixture.physics.lastDt = 0.1;
-    fixture.ball.position.x += 10;
+  fixture.physics.update = function (mode) {
+    if (mode == "ballOnly") {
+      fixture.physics.lastDt = 0.1;
+      fixture.ball.position.x += 10;
+    }
   };
 
   fixture.game.update();

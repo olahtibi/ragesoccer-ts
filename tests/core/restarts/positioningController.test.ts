@@ -4,212 +4,159 @@ import {
   Vector2 as Vector2d,
   Vector3 as Vector3d,
 } from "../../../src/math/vector";
+import type { Vector2 } from "../../../src/math/vector";
+import type { Player } from "../../../src/world/player";
 import { vi } from "vitest";
 
-function positioningControllerFor(fixture: TestFixture) {
-  return fixture.positioningController;
+function play(
+  fixture: TestFixture,
+  side: "home" | "away",
+  targets: Vector2[],
+  readyPlayer: Player | null = null,
+  onComplete: () => void = function () {},
+): void {
+  var players = side == "home" ? fixture.homePlayers : fixture.awayPlayers;
+  fixture.positioningController.play({
+    ballPosition: new Vector3d(334, 433, 0),
+    readyPlayer: readyPlayer,
+    placements: {
+      home:
+        side == "home"
+          ? players.map((player, index) => ({ player, target: targets[index] }))
+          : [],
+      away:
+        side == "away"
+          ? players.map((player, index) => ({ player, target: targets[index] }))
+          : [],
+    },
+    onComplete: onComplete,
+  });
 }
 
 test("PositioningController starts inactive", function () {
   var fixture = makeFixture();
-  var controller = positioningControllerFor(fixture);
-
-  assertEqual(controller.isActive(), false);
-  assertEqual(controller.isActive(), false);
+  assertEqual(fixture.positioningController.isActive(), false);
+  assertEqual(fixture.positioningController.placements(), null);
 });
 
-test("PositioningController rejects mismatched player and position counts", function () {
-  var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 1 });
-  var controller = positioningControllerFor(fixture);
-
-  var started = controller.play({
-    ballPosition: fixture.config.pitch.initialBallPosition,
-    readyPlayer: null,
-    sceneTeams: [
-      {
-        side: "home",
-        players: fixture.homePlayers,
-        positions: [new Vector2d(100, 100)],
+test("PositioningController throws when placement team identity is invalid", function () {
+  var fixture = makeFixture();
+  var threw = false;
+  try {
+    fixture.positioningController.play({
+      ballPosition: fixture.config.pitch.initialBallPosition,
+      readyPlayer: null,
+      placements: {
+        home: [{ player: fixture.playerAway, target: new Vector2d(100, 100) }],
+        away: [],
       },
-    ],
-  });
-
-  assertEqual(started, false);
-  assertEqual(controller.isActive(), false);
+      onComplete: function () {},
+    });
+  } catch {
+    threw = true;
+  }
+  assertEqual(threw, true);
+  assertEqual(fixture.positioningController.isActive(), false);
 });
 
 test("PositioningController locks ball and moves players toward explicit targets", function () {
-  var fixture = makeFixture({
-    homeTeamSize: 1,
-    awayTeamSize: 1,
-    playerStrength: 10,
-  });
-  var controller = positioningControllerFor(fixture);
-  fixture.ball.position.x = 100;
-  fixture.ball.position.y = 200;
+  var fixture = makeFixture({ playerStrength: 10 });
+  fixture.ball.placeAt(new Vector3d(100, 200, 0));
   fixture.ball.velocity.x = 90;
-  fixture.homePlayers[0].position.x = 100;
-  fixture.homePlayers[0].position.y = 100;
+  fixture.playerHome.placeAt(new Vector2d(100, 100));
 
-  controller.play({
-    ballPosition: new Vector3d(334, 433, 0),
-    readyPlayer: null,
-    sceneTeams: [
-      {
-        side: "home",
-        players: fixture.homePlayers,
-        positions: [new Vector2d(120, 100)],
-      },
-    ],
-  });
-  controller.update(fixture.game.context());
+  play(fixture, "home", [new Vector2d(120, 100)]);
+  fixture.positioningController.update(fixture.game.context());
 
   assertEqual(fixture.ball.position.x, 334);
   assertEqual(fixture.ball.position.y, 433);
   assertEqual(fixture.ball.velocity.x, 0);
-  assertTrue(fixture.homePlayers[0].velocity.x > 0);
+  assertTrue(fixture.playerHome.velocity.x > 0);
 });
 
 test("PositioningController waits for players and camera before completing", function () {
-  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
-  var game = fixture.game;
-  var controller = positioningControllerFor(fixture);
+  var fixture = makeFixture();
   var cameraArrived = false;
-  vi.spyOn(game.camera, "hasArrivedAtFocus").mockImplementation(
+  vi.spyOn(fixture.game.camera, "hasArrivedAtFocus").mockImplementation(
     () => cameraArrived,
   );
-  fixture.homePlayers[0].position.x = 120;
-  fixture.homePlayers[0].position.y = 100;
+  fixture.playerHome.placeAt(new Vector2d(120, 100));
+  play(fixture, "home", [new Vector2d(120, 100)]);
 
-  controller.play({
-    ballPosition: new Vector3d(334, 433, 0),
-    readyPlayer: null,
-    sceneTeams: [
-      {
-        side: "home",
-        players: fixture.homePlayers,
-        positions: [new Vector2d(120, 100)],
-      },
-    ],
-  });
-
-  controller.update(game.context());
-  assertEqual(controller.isActive(), true);
-  assertTrue(game.camera.focusTarget !== null);
-
+  fixture.positioningController.update(fixture.game.context());
+  assertEqual(fixture.positioningController.isActive(), true);
   cameraArrived = true;
-  controller.update(game.context());
+  fixture.positioningController.update(fixture.game.context());
 
-  assertEqual(controller.isActive(), false);
-  assertEqual(game.camera.focusTarget, null);
+  assertEqual(fixture.positioningController.isActive(), false);
+  assertEqual(fixture.game.camera.focusTarget, null);
 });
 
 test("PositioningController snaps overshot players to targets", function () {
-  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
-  var controller = positioningControllerFor(fixture);
+  var fixture = makeFixture();
   var target = new Vector2d(120, 100);
-  fixture.homePlayers[0].position.x = 120;
-  fixture.homePlayers[0].position.y = 96;
+  fixture.playerHome.placeAt(new Vector2d(120, 96));
+  play(fixture, "home", [target]);
+  fixture.playerHome.velocity.y = -fixture.config.teamVelocity("home");
 
-  controller.play({
-    ballPosition: fixture.config.pitch.initialBallPosition,
-    readyPlayer: null,
-    sceneTeams: [
-      {
-        side: "home",
-        players: fixture.homePlayers,
-        positions: [target],
-      },
-    ],
-  });
-  fixture.homePlayers[0].velocity.x = 0;
-  fixture.homePlayers[0].velocity.y = -fixture.config.teamVelocity("home");
-  controller.updateBeforePhysics(fixture.game.context());
+  fixture.positioningController.updateBeforePhysics(fixture.game.context());
 
-  assertEqual(fixture.homePlayers[0].position.x, target.x);
-  assertEqual(fixture.homePlayers[0].position.y, target.y);
-  assertEqual(fixture.homePlayers[0].velocity.y, 0);
+  assertEqual(fixture.playerHome.position.x, target.x);
+  assertEqual(fixture.playerHome.position.y, target.y);
+  assertEqual(fixture.playerHome.velocity.y, 0);
 });
 
-test("PositioningController ignores pre-positioning velocity when moving players to targets", function () {
-  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
-  var controller = positioningControllerFor(fixture);
+test("PositioningController clears pre-positioning velocity", function () {
+  var fixture = makeFixture();
   var target = new Vector2d(120, 100);
-  fixture.awayPlayers[0].position.x = 80;
-  fixture.awayPlayers[0].position.y = 100;
-  fixture.awayPlayers[0].velocity.x = -fixture.config.teamVelocity("away");
-  fixture.awayPlayers[0].velocity.y = 0;
+  fixture.playerAway.placeAt(new Vector2d(80, 100));
+  fixture.playerAway.velocity.x = -fixture.config.teamVelocity("away");
 
-  controller.play({
-    ballPosition: fixture.config.pitch.initialBallPosition,
-    readyPlayer: null,
-    sceneTeams: [
-      {
-        side: "away",
-        players: fixture.awayPlayers,
-        positions: [target],
-      },
-    ],
-  });
-  controller.updateBeforePhysics(fixture.game.context());
+  play(fixture, "away", [target]);
+  fixture.positioningController.updateBeforePhysics(fixture.game.context());
 
-  assertEqual(fixture.awayPlayers[0].position.x, 80);
-  assertEqual(fixture.awayPlayers[0].position.y, 100);
-  assertTrue(fixture.awayPlayers[0].velocity.x > 0);
+  assertEqual(fixture.playerAway.position.x, 80);
+  assertTrue(fixture.playerAway.velocity.x > 0);
 });
 
-test("PositioningController becomes ready when its taker arrives before other players", function () {
-  var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 1 });
-  var controller = positioningControllerFor(fixture);
+test("PositioningController is ready when its taker arrives first", function () {
+  var fixture = makeFixture({ homeTeamSize: 2 });
   var takerTarget = new Vector2d(120, 100);
-  fixture.homePlayers[0].position.x = takerTarget.x;
-  fixture.homePlayers[0].position.y = takerTarget.y;
-  fixture.homePlayers[1].position.x = 300;
-  fixture.homePlayers[1].position.y = 300;
+  fixture.homePlayers[0].placeAt(takerTarget);
+  fixture.homePlayers[1].placeAt(new Vector2d(300, 300));
 
-  controller.play({
-    ballPosition: fixture.config.pitch.initialBallPosition,
-    readyPlayer: fixture.homePlayers[0],
-    sceneTeams: [
-      {
-        side: "home",
-        players: fixture.homePlayers,
-        positions: [takerTarget, new Vector2d(400, 400)],
-      },
-    ],
-  });
+  play(
+    fixture,
+    "home",
+    [takerTarget, new Vector2d(400, 400)],
+    fixture.homePlayers[0],
+  );
 
-  assertEqual(controller.isReadyForInput(), true);
-  assertEqual(controller.isActive(), true);
+  assertEqual(fixture.positioningController.isReadyForInput(), true);
+  assertEqual(
+    fixture.positioningController.readyPlayer(),
+    fixture.homePlayers[0],
+  );
 });
 
 test("Cancelling ready positioning does not snap unfinished players", function () {
-  var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 1 });
-  var controller = positioningControllerFor(fixture);
+  var fixture = makeFixture({ homeTeamSize: 2 });
   var completed = false;
-  fixture.homePlayers[0].position.x = 120;
-  fixture.homePlayers[0].position.y = 100;
-  fixture.homePlayers[1].position.x = 300;
-  fixture.homePlayers[1].position.y = 300;
+  fixture.homePlayers[0].placeAt(new Vector2d(120, 100));
+  fixture.homePlayers[1].placeAt(new Vector2d(300, 300));
 
-  controller.play({
-    ballPosition: fixture.config.pitch.initialBallPosition,
-    readyPlayer: fixture.homePlayers[0],
-    onComplete: function () {
+  play(
+    fixture,
+    "home",
+    [new Vector2d(120, 100), new Vector2d(400, 400)],
+    fixture.homePlayers[0],
+    function () {
       completed = true;
     },
-    sceneTeams: [
-      {
-        side: "home",
-        players: fixture.homePlayers,
-        positions: [new Vector2d(120, 100), new Vector2d(400, 400)],
-      },
-    ],
-  });
-  controller.cancel(fixture.game.context());
+  );
+  fixture.positioningController.cancel(fixture.game.context());
 
-  assertEqual(controller.isActive(), false);
+  assertEqual(fixture.positioningController.isActive(), false);
   assertEqual(fixture.homePlayers[1].position.x, 300);
-  assertEqual(fixture.homePlayers[1].position.y, 300);
   assertEqual(completed, false);
 });

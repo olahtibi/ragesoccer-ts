@@ -1,9 +1,10 @@
 import { Vector2 as Vector2d } from "../math/vector";
-import type { Boundary, RestartType, TeamSide } from "../types";
 import type { Game } from "../core/game";
+import { ARROW_KEYS } from "./keys";
 export { BrowserInput };
 
 const KEY = {
+  ...ARROW_KEYS,
   debugCorner: 67,
   fps: 70,
   pauseAndDump: 191,
@@ -35,13 +36,7 @@ class BrowserInput {
   }
 
   public handleTouch(event: TouchEvent): void {
-    if (
-      (this.game.matchFlow.simulationMode() == "playersOnly" &&
-        !this.game.matchFlow.canResumeFromInput()) ||
-      this.game.isPaused() ||
-      this.game.matchFlow.isOutOfPlay()
-    )
-      return;
+    if (!this.canApplyGameplayInput(true)) return;
     const scaleBy = this.game.config.computeScaleBy();
     const target = new Vector2d(
       -this.game.camera.position.x + event.touches[0].clientX / scaleBy,
@@ -70,12 +65,7 @@ class BrowserInput {
   }
 
   public applyHumanInput(): void {
-    if (
-      this.game.isPaused() ||
-      this.game.matchFlow.simulationMode() == "playersOnly" ||
-      this.game.matchFlow.isOutOfPlay()
-    )
-      return;
+    if (!this.canApplyGameplayInput(false)) return;
     this.game.humanController.selectPlayer();
     const canMove = this.game.matchFlow.canTeamMove("home");
     this.game.humanController.update(canMove);
@@ -96,8 +86,10 @@ class BrowserInput {
         this.game.config.pitch.initialBallPosition.x
           ? this.game.config.pitch.fieldLeft
           : this.game.config.pitch.fieldRight;
-      this.game.beginRestart("corner" as RestartType, "home" as TeamSide, {
-        boundary: "top" as Boundary,
+      this.game.beginRestart({
+        type: "corner",
+        awardedTo: "home",
+        boundary: "top",
         position: new Vector2d(cornerX, this.game.config.pitch.fieldTop),
       });
     }
@@ -105,5 +97,11 @@ class BrowserInput {
       this.game.togglePause();
       this.game.debugTool.dump();
     }
+  }
+
+  private canApplyGameplayInput(allowPositioningResume: boolean): boolean {
+    if (this.game.isPaused() || this.game.matchFlow.isOutOfPlay()) return false;
+    if (this.game.matchFlow.simulationMode() != "playersOnly") return true;
+    return allowPositioningResume && this.game.matchFlow.canResumeFromInput();
   }
 }

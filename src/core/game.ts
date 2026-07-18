@@ -1,13 +1,7 @@
 import { TeamAi } from "../ai/teamAi";
 import type { Vector2 } from "../math/vector";
 import { TEAM_SIDES } from "../types";
-import type {
-  GameContext,
-  RestartRequest,
-  RestartType,
-  TeamSide,
-  TeamSideMap,
-} from "../types";
+import type { GameContext, RestartRequest, TeamSideMap } from "../types";
 import { HumanController } from "../input/humanController";
 import { Ball } from "../world/ball";
 import { BoundaryDetector } from "../world/detectors/boundaryDetector";
@@ -43,8 +37,6 @@ interface GameOptions {
   matchFlow: MatchFlow;
   debugTool: DebugTool;
 }
-
-type RestartDetails = Omit<Partial<RestartRequest>, "type" | "awardedTo">;
 
 function createTeamRuntime(
   config: Configuration,
@@ -109,12 +101,7 @@ class Game {
     return this.matchFlow.resumeFromInput(this.context(), direction);
   }
 
-  public beginRestart(
-    type: RestartType,
-    awardedTo: TeamSide,
-    details: RestartDetails = {},
-  ): boolean {
-    const request: RestartRequest = { ...details, type, awardedTo };
+  public beginRestart(request: RestartRequest): boolean {
     return this.matchFlow.beginRestart(request, this.context());
   }
 
@@ -124,17 +111,17 @@ class Game {
     if (mode == "none") {
       this.physics.resetClock();
     } else if (mode == "ballOnly") {
-      this.physics.updateBallOnly();
+      this.physics.update("ballOnly");
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
     } else if (mode == "playersOnly") {
       this.matchFlow.updateBeforePhysics(context);
-      this.physics.updatePlayersOnly();
+      this.physics.update("playersOnly");
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
     } else {
       this.updateAi();
       const canMove = this.matchFlow.canTeamMove("home");
       this.humanController.update(canMove);
-      this.physics.update();
+      this.physics.update("full");
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
       this.matchFlow.detectPostPhysicsEvents(context);
     }
@@ -166,7 +153,6 @@ class Game {
 function createGame(config: Configuration): Game {
   const ball = new Ball(
     config.assets.ball,
-    config.ball.radius,
     config.pitch.initialBallPosition,
     config.ball,
   );

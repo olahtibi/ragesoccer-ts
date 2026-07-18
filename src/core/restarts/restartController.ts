@@ -4,7 +4,7 @@ import type {
   RestartPhase,
   RestartRequest,
   RestartScene,
-  RestartSceneTeam,
+  RestartPlacements,
   RestartStrategy,
   RestartType,
   SimulationMode,
@@ -27,8 +27,8 @@ interface RestartSession {
   strategy: RestartStrategy;
   opponentReadyElapsed: number;
   phase: RestartPhase;
-  taker?: Player | null;
-  positioningTeams?: RestartSceneTeam[];
+  taker: Player | null;
+  placements: RestartPlacements;
 }
 
 class RestartController {
@@ -58,35 +58,33 @@ class RestartController {
     const isImmediate = positioningMode == "immediate";
 
     this.restartSequence++;
-    request.positioningSeed = this.restartSequence;
+    const sessionRequest: RestartRequest = {
+      ...request,
+      positioningSeed: this.restartSequence,
+    };
 
     context.humanController.clearInput();
     context.ball.heldBy = null;
+    const scene = strategy.createScene(context, sessionRequest);
     this.session = {
       sequence: this.restartSequence,
-      request: request,
+      request: sessionRequest,
       strategy: strategy,
       opponentReadyElapsed: 0,
       phase: "positioning",
+      taker: scene.readyPlayer,
+      placements: scene.placements,
     };
-    const scene = strategy.createScene(context, request);
-    this.session.taker = scene.readyPlayer || null;
-    this.session.positioningTeams = scene.sceneTeams;
     if (isImmediate) {
       this.applySceneImmediately(context, scene);
       this.finishPositioning(context);
     } else {
-      if (
-        !this.positioningController.play({
-          ...scene,
-          onComplete: () => {
-            this.finishPositioning(context);
-          },
-        })
-      ) {
-        this.session = null;
-        return false;
-      }
+      this.positioningController.play({
+        ...scene,
+        onComplete: () => {
+          this.finishPositioning(context);
+        },
+      });
     }
     return true;
   }
@@ -95,19 +93,10 @@ class RestartController {
     context: GameContext,
     scene: RestartScene,
   ): void {
-    context.ball.position.x = scene.ballPosition.x;
-    context.ball.position.y = scene.ballPosition.y;
-    context.ball.position.z = scene.ballPosition.z || 0;
-    context.ball.velocity.x = 0;
-    context.ball.velocity.y = 0;
-    context.ball.velocity.z = 0;
-    for (let t = 0; t < scene.sceneTeams.length; t++) {
-      const sceneTeam = scene.sceneTeams[t];
-      for (let i = 0; i < sceneTeam.players.length; i++) {
-        sceneTeam.players[i].position.x = sceneTeam.positions[i].x;
-        sceneTeam.players[i].position.y = sceneTeam.positions[i].y;
-        sceneTeam.players[i].velocity.x = 0;
-        sceneTeam.players[i].velocity.y = 0;
+    context.ball.placeAt(scene.ballPosition);
+    for (const side of ["home", "away"] as const) {
+      for (const placement of scene.placements[side]) {
+        placement.player.placeAt(placement.target);
       }
     }
   }
@@ -219,14 +208,8 @@ class RestartController {
   }
 
   public positioningTargets(side: TeamSide): Vector2[] | null {
-    if (this.session == null || this.session.positioningTeams == null)
-      return null;
-    for (let i = 0; i < this.session.positioningTeams.length; i++) {
-      if (this.session.positioningTeams[i].side == side) {
-        return this.session.positioningTeams[i].positions;
-      }
-    }
-    return null;
+    if (this.session == null) return null;
+    return this.session.placements[side].map((placement) => placement.target);
   }
 
   public updateBeforePhysics(context: GameContext): void {
@@ -282,11 +265,8 @@ class RestartController {
         this.session.opponentReadyElapsed = 0;
         return false;
       }
-      this.session.opponentReadyElapsed += deltaSeconds || 0;
-      const delay = Math.max(
-        0,
-        context.config.restarts.opponentDelaySeconds || 0,
-      );
+      this.session.opponentReadyElapsed += deltaSeconds;
+      const delay = Math.max(0, context.config.restarts.opponentDelaySeconds);
       if (this.session.opponentReadyElapsed < delay) return false;
       return this.resume(context, null);
     }

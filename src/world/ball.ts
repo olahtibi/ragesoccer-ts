@@ -24,13 +24,12 @@ class Ball {
 
   public constructor(
     imgBall: HTMLImageElement,
-    ballRadius: number,
     position: { x: number; y: number; z?: number },
     ballConfig: Configuration["ball"],
   ) {
     this.imgBall = imgBall;
-    this.ballRadius = ballRadius;
-    this.position = new Vector3d(position.x, position.y, position.z || 0);
+    this.ballRadius = ballConfig.radius;
+    this.position = new Vector3d(position.x, position.y, position.z ?? 0);
     this.velocity = new Vector3d(0, 0, 0);
     this.phaseIndex = 0;
     this.lastTouchedBy = null;
@@ -40,10 +39,23 @@ class Ball {
     this.spinPxPerPhase = ballConfig.spinPxPerPhase;
     this.spritePhases = ballConfig.spritePhases;
     this.lastAnimationPosition = new Vector2d(this.position.x, this.position.y);
-    this.heldOffsetX = ballConfig.heldOffsetX || 5;
-    this.heldOffsetY = ballConfig.heldOffsetY || -8;
-    this.shadowFrame = ballConfig.shadowFrame || 4;
-    this.shadowOffset = ballConfig.shadowOffset || 1;
+    this.heldOffsetX = ballConfig.heldOffsetX;
+    this.heldOffsetY = ballConfig.heldOffsetY;
+    this.shadowFrame = ballConfig.shadowFrame;
+    this.shadowOffset = ballConfig.shadowOffset;
+  }
+
+  public stop(): void {
+    this.velocity.x = 0;
+    this.velocity.y = 0;
+    this.velocity.z = 0;
+  }
+
+  public placeAt(position: { x: number; y: number; z?: number }): void {
+    this.position.x = position.x;
+    this.position.y = position.y;
+    this.position.z = position.z ?? 0;
+    this.stop();
   }
 
   public draw(ctx: CanvasRenderingContext2D): void {

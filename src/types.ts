@@ -11,7 +11,6 @@ export type TeamSide = "home" | "away";
 export const TEAM_SIDES = ["home", "away"] as const;
 export type TeamSideMap<T> = Record<TeamSide, T>;
 export type RestartType = "kickoff" | "throwIn" | "corner" | "goalKick";
-export type MatchState = "normalPlay" | "outOfPlay" | "restart" | "paused";
 export type RestartPhase =
   "positioning" | "waitingForInput" | "inProgress" | "complete";
 export type SimulationMode = "none" | "ballOnly" | "playersOnly" | "full";
@@ -30,13 +29,37 @@ export type TeamAiState =
 export type IndividualCommandName =
   "inactive" | "moveToPosition" | "attackBall";
 
-export interface RestartRequest {
-  type: RestartType;
+interface RestartRequestBase {
   awardedTo: TeamSide;
-  boundary?: Boundary;
-  position?: Vector2;
   positioningSeed?: number;
 }
+
+export interface KickoffRestartRequest extends RestartRequestBase {
+  type: "kickoff";
+}
+
+export interface ThrowInRestartRequest extends RestartRequestBase {
+  type: "throwIn";
+  boundary: "left" | "right";
+  position: Vector2;
+}
+
+export interface CornerRestartRequest extends RestartRequestBase {
+  type: "corner";
+  boundary: "top" | "bottom";
+  position: Vector2;
+}
+
+export interface GoalKickRestartRequest extends RestartRequestBase {
+  type: "goalKick";
+  boundary: "top" | "bottom";
+}
+
+export type RestartRequest =
+  | KickoffRestartRequest
+  | ThrowInRestartRequest
+  | CornerRestartRequest
+  | GoalKickRestartRequest;
 
 export interface BoundaryEvent {
   boundary: Boundary;
@@ -61,20 +84,21 @@ export interface GameContext {
   camera: Camera;
 }
 
-export interface RestartSceneTeam {
-  side: TeamSide;
-  players: Player[];
-  positions: Vector2[];
+export interface PlayerPlacement {
+  player: Player;
+  target: Vector2;
 }
+
+export type RestartPlacements = TeamSideMap<PlayerPlacement[]>;
 
 export interface RestartScene {
   ballPosition: Vector2 & { z?: number };
-  sceneTeams: RestartSceneTeam[];
+  placements: RestartPlacements;
   readyPlayer: Player | null;
 }
 
 export interface PositioningOptions extends RestartScene {
-  onComplete?: (context: GameContext) => void;
+  onComplete: (context: GameContext) => void;
 }
 
 export interface RestartStrategy {

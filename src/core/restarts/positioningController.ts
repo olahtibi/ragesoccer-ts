@@ -4,8 +4,9 @@ import { Vector3 as Vector3d } from "../../math/vector";
 import type { Configuration } from "../configuration";
 import type {
   GameContext,
+  PlayerPlacement,
   PositioningOptions,
-  RestartSceneTeam,
+  RestartPlacements,
   TeamSide,
 } from "../../types";
 import type { Ball } from "../../world/ball";
@@ -14,54 +15,62 @@ export { PositioningController };
 
 class PositioningController {
   private readonly config: Configuration;
-  private active: boolean;
-  public ballPosition: Vector3d | null;
-  public sceneTeams: RestartSceneTeam[];
-  public readyPlayer: Player | null;
-  private onComplete: ((context: GameContext) => void) | null;
+  private session: PositioningSession | null;
 
   public constructor(config: Configuration) {
     this.config = config;
-    this.active = false;
-    this.ballPosition = null;
-    this.sceneTeams = [];
-    this.readyPlayer = null;
-    this.onComplete = null;
+    this.session = null;
   }
 
   public isActive(): boolean {
-    return this.active == true;
+    return this.session != null;
   }
 
-  public play(options: PositioningOptions): boolean {
-    if (!this.validRestartOptions(options)) return false;
-
-    this.active = true;
-    this.ballPosition = new Vector3d(
+  public play(options: PositioningOptions): void {
+    let readyPlayerPlaced = options.readyPlayer == null;
+    for (const side of ["home", "away"] as const) {
+      for (const placement of options.placements[side]) {
+        if (placement.player.teamSide != side) {
+          throw new Error(`Invalid ${side} positioning placement`);
+        }
+        if (placement.player === options.readyPlayer) readyPlayerPlaced = true;
+      }
+    }
+    if (!readyPlayerPlaced) {
+      throw new Error("Ready player has no positioning placement");
+    }
+    const ballPosition = new Vector3d(
       options.ballPosition.x,
       options.ballPosition.y,
-      options.ballPosition.z || 0,
+      options.ballPosition.z ?? 0,
     );
-    this.sceneTeams = options.sceneTeams;
-    this.readyPlayer = options.readyPlayer || null;
-    this.onComplete =
-      typeof options.onComplete == "function" ? options.onComplete : null;
+    this.session = {
+      ballPosition,
+      placements: options.placements,
+      readyPlayer: options.readyPlayer,
+      onComplete: options.onComplete,
+    };
     this.stopPlayers();
-    return true;
+  }
+
+  public readyPlayer(): Player | null {
+    return this.session?.readyPlayer ?? null;
+  }
+
+  public placements(): RestartPlacements | null {
+    return this.session?.placements ?? null;
+  }
+
+  public ballPosition(): Vector3d | null {
+    return this.session?.ballPosition ?? null;
   }
 
   public isReadyForInput(): boolean {
-    if (!this.active || this.readyPlayer == null) return false;
-    for (let t = 0; t < this.sceneTeams.length; t++) {
-      const sceneTeam = this.sceneTeams[t];
-      for (let i = 0; i < sceneTeam.players.length; i++) {
-        if (sceneTeam.players[i] === this.readyPlayer) {
-          return (
-            MathLib.computeDistance(
-              this.readyPlayer.position,
-              sceneTeam.positions[i],
-            ) <= this.config.cutscene.arrivedRadius
-          );
+    if (this.session?.readyPlayer == null) return false;
+    for (const side of ["home", "away"] as const) {
+      for (const placement of this.session.placements[side]) {
+        if (placement.player === this.session.readyPlayer) {
+          return this.arrived(placement);
         }
       }
     }
@@ -69,15 +78,14 @@ class PositioningController {
   }
 
   public updateBeforePhysics(context: GameContext): void {
-    if (!this.active) return;
+    if (this.session == null) return;
     this.lockBall(context.ball);
-    if (this.ballPosition != null)
-      context.camera.setFocusTarget(this.ballPosition);
+    context.camera.setFocusTarget(this.session.ballPosition);
     this.updatePlayers(context);
   }
 
   public updateAfterPhysics(context: GameContext): void {
-    if (!this.active) return;
+    if (this.session == null) return;
     this.lockBall(context.ball);
     const allPlayersArrived = this.updatePlayers(context);
     const cameraArrived = context.camera.hasArrivedAtFocus();
@@ -90,45 +98,23 @@ class PositioningController {
   }
 
   public cancel(context: GameContext): void {
-    this.onComplete = null;
+    if (this.session != null) this.session.onComplete = null;
     this.clear(context);
   }
 
   // Private helpers
 
-  private validRestartOptions(options: PositioningOptions): boolean {
-    if (
-      options == null ||
-      options.ballPosition == null ||
-      options.sceneTeams == null
-    )
-      return false;
-    if (options.sceneTeams.length == null) return false;
-    for (let i = 0; i < options.sceneTeams.length; i++) {
-      const sceneTeam = options.sceneTeams[i];
-      if (
-        sceneTeam == null ||
-        sceneTeam.players == null ||
-        sceneTeam.positions == null ||
-        sceneTeam.side == null
-      )
-        return false;
-      if (sceneTeam.players.length !== sceneTeam.positions.length) return false;
-    }
-    return true;
-  }
-
   private updatePlayers(context: GameContext): boolean {
+    if (this.session == null) return true;
     let allArrived = true;
-    for (let t = 0; t < this.sceneTeams.length; t++) {
-      const sceneTeam = this.sceneTeams[t];
-      for (let i = 0; i < sceneTeam.players.length; i++) {
+    for (const side of ["home", "away"] as const) {
+      for (const placement of this.session.placements[side]) {
         if (
           !this.movePlayerToTarget(
             context,
-            sceneTeam.players[i],
-            sceneTeam.positions[i],
-            sceneTeam.side,
+            placement.player,
+            placement.target,
+            side,
           )
         )
           allArrived = false;
@@ -138,11 +124,10 @@ class PositioningController {
   }
 
   private stopPlayers(): void {
-    for (let t = 0; t < this.sceneTeams.length; t++) {
-      const sceneTeam = this.sceneTeams[t];
-      for (let i = 0; i < sceneTeam.players.length; i++) {
-        sceneTeam.players[i].velocity.x = 0;
-        sceneTeam.players[i].velocity.y = 0;
+    if (this.session == null) return;
+    for (const side of ["home", "away"] as const) {
+      for (const placement of this.session.placements[side]) {
+        placement.player.stop();
       }
     }
   }
@@ -160,13 +145,10 @@ class PositioningController {
       player.velocity.x * dx + player.velocity.y * dy <= 0 &&
       (player.velocity.x != 0 || player.velocity.y != 0);
     if (distance <= this.config.cutscene.arrivedRadius || movingAway) {
-      player.position.x = target.x;
-      player.position.y = target.y;
-      player.velocity.x = 0;
-      player.velocity.y = 0;
+      player.placeAt(target);
       return true;
     }
-    player.velocity = MathLib.computeVelocityForTarget(
+    player.velocity = MathLib.velocityTowards(
       player.position,
       target,
       context.config.teamVelocity(side),
@@ -175,23 +157,28 @@ class PositioningController {
   }
 
   private lockBall(ball: Ball): void {
-    if (this.ballPosition == null) return;
-    ball.position.x = this.ballPosition.x;
-    ball.position.y = this.ballPosition.y;
-    ball.position.z = this.ballPosition.z || 0;
-    ball.velocity.x = 0;
-    ball.velocity.y = 0;
-    ball.velocity.z = 0;
+    if (this.session == null) return;
+    ball.placeAt(this.session.ballPosition);
   }
 
   private clear(context: GameContext): void {
-    const onComplete = this.onComplete;
-    this.active = false;
-    this.ballPosition = null;
-    this.sceneTeams = [];
-    this.readyPlayer = null;
-    this.onComplete = null;
+    const onComplete = this.session?.onComplete ?? null;
+    this.session = null;
     context.camera.clearFocusTarget();
     if (onComplete != null) onComplete(context);
   }
+
+  private arrived(placement: PlayerPlacement): boolean {
+    return (
+      MathLib.computeDistance(placement.player.position, placement.target) <=
+      this.config.cutscene.arrivedRadius
+    );
+  }
+}
+
+interface PositioningSession {
+  ballPosition: Vector3d;
+  placements: PositioningOptions["placements"];
+  readyPlayer: Player | null;
+  onComplete: ((context: GameContext) => void) | null;
 }
