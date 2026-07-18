@@ -1,9 +1,6 @@
-import * as testlib from "../testlib";
+import { assertEqual, assertTrue, test } from "../testlib";
 import { makeFixture } from "../helpers";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
+import { Formation } from "../../src/ai/formation";
 
 test("Team owns players and score without constructing AI", function () {
   var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 2 });
@@ -11,7 +8,7 @@ test("Team owns players and score without constructing AI", function () {
   assertEqual(fixture.homeTeam.players.length, 3);
   assertEqual(fixture.awayTeam.players.length, 2);
   assertEqual(fixture.homeTeam.score, 0);
-  assertEqual(fixture.homeTeam.teamAi, undefined);
+  assertEqual("teamAi" in fixture.homeTeam, false);
 });
 
 test("Team creates relative home kickoff positions", function () {

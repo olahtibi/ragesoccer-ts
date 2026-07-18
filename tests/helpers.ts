@@ -1,9 +1,11 @@
+import { vi } from "vitest";
 import { BrowserInput } from "../src/input/io";
 import { Vector2 } from "../src/math/vector";
 import { Configuration, type GameAssets } from "../src/core/configuration";
-import { createGame } from "../src/core/game";
+import { createGame, type Game } from "../src/core/game";
+import type { DebugInputEvent } from "../src/types";
 
-interface FixtureOptions {
+export interface FixtureOptions {
   homeTeamSize?: number;
   awayTeamSize?: number;
   playerStrength?: number;
@@ -76,31 +78,111 @@ export function makeFixture(options: FixtureOptions = {}) {
   };
 }
 
-export function replayDebugLog(payload, fixture) {
-  const game = fixture.game;
-  game.camera = { position: new Vector2(0, 0), showStats: false };
-  const input = new BrowserInput(game, window);
-  const events = (payload.events || []).slice();
-  let eventIndex = 0;
-  for (const frame of payload.frames || []) {
-    while (
-      eventIndex < events.length &&
-      events[eventIndex].frame <= frame.frame
-    ) {
-      applyReplayEvent(events[eventIndex], game, input);
-      eventIndex++;
+export type TestFixture = ReturnType<typeof makeFixture>;
+
+export interface ReplayFrame {
+  frame: number;
+  dt: number;
+}
+
+export interface ReplayPayload {
+  frames: ReplayFrame[];
+  events: DebugInputEvent[];
+}
+
+export function canvasContext(
+  overrides: Partial<CanvasRenderingContext2D>,
+): CanvasRenderingContext2D {
+  return overrides as CanvasRenderingContext2D;
+}
+
+export function touchEventAt(clientX: number, clientY: number): TouchEvent {
+  return {
+    touches: [{ clientX, clientY }],
+  } as unknown as TouchEvent;
+}
+
+export function completePositioning(fixture: TestFixture): void {
+  const controller = fixture.positioningController;
+  for (const sceneTeam of controller.sceneTeams) {
+    for (let i = 0; i < sceneTeam.players.length; i++) {
+      sceneTeam.players[i].position.x = sceneTeam.positions[i].x;
+      sceneTeam.players[i].position.y = sceneTeam.positions[i].y;
     }
-    advanceReplayFrame(game, frame.dt || 0);
+  }
+  vi.spyOn(fixture.game.camera, "hasArrivedAtFocus").mockReturnValue(true);
+  controller.updateAfterPhysics(fixture.game.context());
+}
+
+export function advancePhysics(
+  fixture: TestFixture,
+  deltaSeconds: number,
+  mode: "full" | "playersOnly" | "ballOnly" = "full",
+): void {
+  vi.useFakeTimers();
+  vi.setSystemTime(fixture.physics.lastUpdated + deltaSeconds * 1000);
+  if (mode === "playersOnly") fixture.physics.updatePlayersOnly();
+  else if (mode === "ballOnly") fixture.physics.updateBallOnly();
+  else fixture.physics.update();
+}
+
+export function updateTeamAis(fixture: TestFixture): void {
+  for (const teamAi of fixture.game.teamAis) {
+    teamAi.update({
+      deltaSeconds: fixture.physics.lastDt,
+      restartActive: fixture.game.matchFlow.isRestartActive(),
+      canMove: fixture.game.matchFlow.canTeamMove(teamAi.team),
+      restartTaker: fixture.game.matchFlow.restartTaker(teamAi.team),
+      positioningTargets: fixture.game.matchFlow.restartPositioningTargets(
+        teamAi.team,
+      ),
+      attackTarget: fixture.game.matchFlow.restartAttackTarget(teamAi.team),
+    });
+  }
+}
+
+export function replayDebugLog(
+  payload: ReplayPayload,
+  fixture: TestFixture,
+): Game {
+  const game = fixture.game;
+  game.camera.position.x = 0;
+  game.camera.position.y = 0;
+  game.camera.showStats = false;
+  const input = new BrowserInput(game, window);
+  const events = payload.events.slice();
+  let eventIndex = 0;
+  vi.useFakeTimers();
+  vi.setSystemTime(game.physics.lastUpdated);
+  try {
+    for (const frame of payload.frames) {
+      while (
+        eventIndex < events.length &&
+        events[eventIndex].frame <= frame.frame
+      ) {
+        applyReplayEvent(events[eventIndex], game, input);
+        eventIndex++;
+      }
+      vi.advanceTimersByTime(frame.dt * 1000);
+      game.update();
+    }
+  } finally {
+    vi.useRealTimers();
   }
   return game;
 }
 
-function applyReplayEvent(event, game, input): void {
+function applyReplayEvent(
+  event: DebugInputEvent,
+  game: Game,
+  input: BrowserInput,
+): void {
   if (event.type === "keydown" || event.type === "keyup") {
+    if (event.keyCode === undefined) return;
     input.handleKey({ type: event.type, keyCode: event.keyCode });
     return;
   }
-  if (event.type === "touch") {
+  if (event.type === "touch" && event.target !== undefined) {
     const target = new Vector2(event.target.x, event.target.y);
     game.humanController.setTouchTarget(target);
     game.resumeFromInput(
@@ -110,21 +192,4 @@ function applyReplayEvent(event, game, input): void {
       ),
     );
   }
-}
-
-function advanceReplayFrame(game, dt: number): void {
-  if (game.matchFlow.simulationMode() === "ballOnly") {
-    game.physics.lastDt = dt;
-    game.physics.updateBallPosition(dt);
-    game.matchFlow.updateAfterPhysics(game.context(), dt);
-    return;
-  }
-  game.updateAi();
-  game.humanController.update(game.matchFlow.canTeamMove(game.teams[0]));
-  game.physics.lastDt = dt;
-  game.physics.updatePlayerPositions(dt);
-  game.physics.resolveBallPlayerContacts();
-  game.physics.updateBallPosition(dt);
-  game.matchFlow.updateAfterPhysics(game.context(), dt);
-  game.matchFlow.detectPostPhysicsEvents(game.context());
 }

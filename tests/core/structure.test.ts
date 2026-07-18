@@ -1,9 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as testlib from "../testlib";
+import { assertTrue, test } from "../testlib";
 
-const test = testlib.test;
-const assertTrue = testlib.assertTrue;
 const sourceRoot = path.resolve(import.meta.dirname, "../../src");
 
 function sourceFiles(directory: string): string[] {

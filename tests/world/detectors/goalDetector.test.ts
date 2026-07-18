@@ -1,8 +1,5 @@
-import * as testlib from "../../testlib";
+import { assertEqual, test } from "../../testlib";
 import { makeFixture } from "../../helpers";
-
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
 
 test("GoalDetector scores home when ball enters top goal", function () {
   var fixture = makeFixture();

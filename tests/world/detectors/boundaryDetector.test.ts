@@ -1,9 +1,5 @@
-import * as testlib from "../../testlib";
+import { assertEqual, assertNear, assertTrue, test } from "../../testlib";
 import { makeFixture } from "../../helpers";
-
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
 
 test("BoundaryDetector reports the first edge crossed with last-touch ownership", function () {
   var fixture = makeFixture();
@@ -14,6 +10,7 @@ test("BoundaryDetector reports the first edge crossed with last-touch ownership"
     fixture.config.pitch.fieldTop - fixture.config.ball.radius - 20;
 
   var event = fixture.boundaryDetector.update();
+  assertTrue(event !== null);
 
   assertEqual(event.boundary, "top");
   assertEqual(event.lastTouchedBy, "home");
@@ -29,7 +26,9 @@ test("BoundaryDetector reports an outside spell only once", function () {
   fixture.ball.position.x =
     fixture.config.pitch.fieldRight + fixture.config.ball.radius + 1;
 
-  assertEqual(fixture.boundaryDetector.update().boundary, "right");
+  var event = fixture.boundaryDetector.update();
+  assertTrue(event !== null);
+  assertEqual(event.boundary, "right");
   assertEqual(fixture.boundaryDetector.update(), null);
 });
 

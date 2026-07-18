@@ -1,8 +1,6 @@
-import * as testlib from "../../testlib";
+import { assertEqual, test } from "../../testlib";
 import { makeFixture } from "../../helpers";
-
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
+import { IndividualAi } from "../../../src/ai/individualAi";
 
 test("inactive leaves velocity unchanged", function () {
   var fixture = makeFixture();
@@ -15,7 +13,7 @@ test("inactive leaves velocity unchanged", function () {
   fixture.playerAway.velocity.y = 3;
 
   ai.setCommand("inactive", null);
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
 
   assertEqual(fixture.playerAway.velocity.x, 2);
   assertEqual(fixture.playerAway.velocity.y, 3);

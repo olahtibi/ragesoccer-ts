@@ -1,17 +1,13 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
+import { assertEqual, assertTrue, test } from "../testlib";
+import { canvasContext, makeFixture } from "../helpers";
 
 test("Stadium is a world aggregate without AI restart or scoring APIs", function () {
   var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 2 });
 
   assertEqual(fixture.stadium.players.length, 5);
-  assertEqual(fixture.stadium.updateAi, undefined);
-  assertEqual(fixture.stadium.updateKickoff, undefined);
-  assertEqual(fixture.stadium.goalDetector, undefined);
+  assertEqual("updateAi" in fixture.stadium, false);
+  assertEqual("updateKickoff" in fixture.stadium, false);
+  assertEqual("goalDetector" in fixture.stadium, false);
 });
 
 test("Stadium draw renders the pitch ball and every player", function () {
@@ -28,7 +24,7 @@ test("Stadium draw renders the pitch ball and every player", function () {
     stroke: function () {},
   };
 
-  fixture.stadium.draw(ctx);
+  fixture.stadium.draw(canvasContext(ctx));
 
   assertEqual(drawCount, 8);
 });
@@ -47,7 +43,7 @@ test("Stadium marks the team-owned human player", function () {
     },
   };
 
-  fixture.stadium.draw(ctx);
+  fixture.stadium.draw(canvasContext(ctx));
 
   assertEqual(strokes, 1);
   assertTrue(

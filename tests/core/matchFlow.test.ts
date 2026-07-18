@@ -1,10 +1,8 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
+import { assertEqual, test } from "../testlib";
+import { makeFixture, type TestFixture } from "../helpers";
+import { Vector2 as Vector2d } from "../../src/math/vector";
 
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
-
-function enterOutOfPlay(fixture) {
+function enterOutOfPlay(fixture: TestFixture): boolean {
   fixture.game.matchFlow.state = "normalPlay";
   fixture.ball.lastTouchedBy = "home";
   fixture.ball.position.x =
@@ -12,7 +10,7 @@ function enterOutOfPlay(fixture) {
   return fixture.game.matchFlow.detectOutOfPlay(fixture.game.context());
 }
 
-function completeOutOfPlayDelay(fixture) {
+function completeOutOfPlayDelay(fixture: TestFixture): void {
   fixture.physics.lastDt = fixture.config.restarts.outOfPlayDelaySeconds;
   fixture.game.matchFlow.updateAfterPhysics(
     fixture.game.context(),

@@ -1,12 +1,8 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
+import { assertEqual, assertNear, test } from "../testlib";
+import { canvasContext, makeFixture } from "../helpers";
 
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
-
-function drawingContext() {
-  return { drawImage: function () {} };
+function drawingContext(): CanvasRenderingContext2D {
+  return canvasContext({ drawImage: function () {} });
 }
 
 test("Ball draw advances its animation by distance travelled", function () {

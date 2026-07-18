@@ -1,12 +1,14 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
+import { assertEqual, assertNear, assertTrue, test } from "../testlib";
+import {
+  completePositioning,
+  makeFixture,
+  touchEventAt,
+  type FixtureOptions,
+} from "../helpers";
+import { BrowserInput } from "../../src/input/io";
+import { Vector2 as Vector2d } from "../../src/math/vector";
 
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
-
-function setup(options) {
+function setup(options: FixtureOptions = {}) {
   var fixture = makeFixture(options);
   fixture.game.camera.position.x = 0;
   fixture.game.camera.position.y = 0;
@@ -100,16 +102,15 @@ test("Touch input stores a world target and controls the selected player", funct
   fixture.ball.position.y = fixture.homePlayers[1].position.y;
   var scale = fixture.config.computeScaleBy();
 
-  setupResult.input.handleTouch({
-    touches: [
-      {
-        clientX: fixture.homePlayers[1].position.x * scale,
-        clientY: (fixture.homePlayers[1].position.y + 50) * scale,
-      },
-    ],
-  });
+  setupResult.input.handleTouch(
+    touchEventAt(
+      fixture.homePlayers[1].position.x * scale,
+      (fixture.homePlayers[1].position.y + 50) * scale,
+    ),
+  );
 
   assertTrue(fixture.homeTeam.humanPlayer === fixture.homePlayers[1]);
+  assertTrue(fixture.game.humanController.touchTarget !== null);
   assertNear(
     fixture.game.humanController.touchTarget.y,
     fixture.homePlayers[1].position.y + 50,
@@ -150,10 +151,7 @@ test("Keyboard direction executes a human throw-in and clamps it inward", functi
       setupResult.fixture.config.pitch.aiCenterY,
     ),
   });
-  setupResult.positioningController.updateBeforePhysics(
-    setupResult.game.context(),
-  );
-  setupResult.positioningController.clear(setupResult.game.context());
+  completePositioning(setupResult.fixture);
 
   setupResult.input.handleKey({ keyCode: 37, type: "keydown" });
 
@@ -171,20 +169,15 @@ test("Touch direction executes a human throw-in and clamps it inward", function 
       setupResult.fixture.config.pitch.aiCenterY,
     ),
   });
-  setupResult.positioningController.updateBeforePhysics(
-    setupResult.game.context(),
-  );
-  setupResult.positioningController.clear(setupResult.game.context());
+  completePositioning(setupResult.fixture);
   var scale = setupResult.fixture.config.computeScaleBy();
 
-  setupResult.input.handleTouch({
-    touches: [
-      {
-        clientX: (setupResult.fixture.config.pitch.fieldRight + 100) * scale,
-        clientY: setupResult.fixture.config.pitch.aiCenterY * scale,
-      },
-    ],
-  });
+  setupResult.input.handleTouch(
+    touchEventAt(
+      (setupResult.fixture.config.pitch.fieldRight + 100) * scale,
+      setupResult.fixture.config.pitch.aiCenterY * scale,
+    ),
+  );
 
   assertEqual(setupResult.restartController.phase(), "inProgress");
   assertTrue(setupResult.fixture.ball.velocity.x < 0);
@@ -200,6 +193,7 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
     ),
   });
   var controller = setupResult.positioningController;
+  assertTrue(controller.readyPlayer !== null);
   for (var t = 0; t < controller.sceneTeams.length; t++) {
     for (var i = 0; i < controller.sceneTeams[t].players.length; i++) {
       if (controller.sceneTeams[t].players[i] === controller.readyPlayer) {
@@ -212,14 +206,12 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
   }
   var scale = setupResult.fixture.config.computeScaleBy();
 
-  setupResult.input.handleTouch({
-    touches: [
-      {
-        clientX: (setupResult.fixture.config.pitch.fieldRight + 100) * scale,
-        clientY: setupResult.fixture.config.pitch.aiCenterY * scale,
-      },
-    ],
-  });
+  setupResult.input.handleTouch(
+    touchEventAt(
+      (setupResult.fixture.config.pitch.fieldRight + 100) * scale,
+      setupResult.fixture.config.pitch.aiCenterY * scale,
+    ),
+  );
 
   assertEqual(setupResult.restartController.phase(), "inProgress");
   assertEqual(controller.isActive(), false);
@@ -248,6 +240,7 @@ test("C awards a home corner on the ball side when debugging is enabled", functi
 
   assertEqual(setupResult.restartController.type(), "corner");
   assertEqual(setupResult.restartController.phase(), "positioning");
+  assertTrue(setupResult.positioningController.ballPosition !== null);
   assertEqual(
     setupResult.positioningController.ballPosition.x,
     setupResult.fixture.config.pitch.fieldRight -
@@ -289,7 +282,7 @@ test("Restart positioning selects the newly closest human player on completion",
       controller.sceneTeams[0].positions[i].y;
   }
 
-  controller.clear(setupResult.game.context());
+  completePositioning(setupResult.fixture);
 
   assertTrue(
     setupResult.fixture.homeTeam.humanPlayer ===
@@ -339,10 +332,9 @@ test("Touch debug events use world coordinates", function () {
   setupResult.game.camera.position.y = -20;
   var scale = setupResult.fixture.config.computeScaleBy();
 
-  setupResult.input.handleTouch({
-    touches: [{ clientX: 30 * scale, clientY: 40 * scale }],
-  });
+  setupResult.input.handleTouch(touchEventAt(30 * scale, 40 * scale));
 
+  assertTrue(setupResult.game.debugTool.events[0].target !== undefined);
   assertEqual(setupResult.game.debugTool.events[0].target.x, 40);
   assertEqual(setupResult.game.debugTool.events[0].target.y, 60);
 });

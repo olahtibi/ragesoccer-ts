@@ -1,9 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as testlib from "../testlib";
+import { assertTrue, test } from "../testlib";
 
-const test = testlib.test;
-const assertTrue = testlib.assertTrue;
 const rootDir = path.resolve(import.meta.dirname, "../..");
 const readFile = (relativePath: string): string =>
   fs.readFileSync(path.join(rootDir, relativePath), "utf8");

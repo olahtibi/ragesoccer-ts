@@ -1,9 +1,13 @@
-import * as testlib from "../testlib";
+import { assertEqual, assertTrue, test } from "../testlib";
 import { makeConfig } from "../helpers";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
+import {
+  Formation,
+  type CornerAssignment,
+  type FormationRole,
+} from "../../src/ai/formation";
+import type { Configuration } from "../../src/core/configuration";
+import { math as MathLib } from "../../src/math/math";
+import type { Vector2 } from "../../src/math/vector";
 
 test("Formation returns one position per player for supported team sizes", function () {
   var config = makeConfig();
@@ -27,7 +31,7 @@ test("Formation mirrors home and away around configured center line", function (
   assertTrue(away[2].y > config.pitch.aiCenterY);
 });
 
-function outsideCenterEllipse(config, position) {
+function outsideCenterEllipse(config: Configuration, position: Vector2) {
   var dx = position.x - config.pitch.initialBallPosition.x;
   var dy = position.y - config.pitch.aiCenterY;
   return (
@@ -106,7 +110,7 @@ test("Formation identifies the first striker as kickoff taker for every team siz
 
 test("Formation builds balanced roles through a full 4-4-2", function () {
   var formation = new Formation(makeConfig());
-  var expected = {
+  var expected: Record<number, string> = {
     6: "goalie,defender,defender,midfielder,striker,striker",
     7: "goalie,defender,defender,midfielder,midfielder,striker,striker",
     8: "goalie,defender,defender,defender,midfielder,midfielder,striker,striker",
@@ -119,10 +123,13 @@ test("Formation builds balanced roles through a full 4-4-2", function () {
     assertEqual(formation.rolesForSize(size).join(","), expected[size]);
   }
   var full = formation.rolesForSize(11);
-  assertEqual(formation.roleCount(full, "goalie"), 1);
-  assertEqual(formation.roleCount(full, "defender"), 4);
-  assertEqual(formation.roleCount(full, "midfielder"), 4);
-  assertEqual(formation.roleCount(full, "striker"), 2);
+  function count(role: FormationRole): number {
+    return full.filter((candidate) => candidate === role).length;
+  }
+  assertEqual(count("goalie"), 1);
+  assertEqual(count("defender"), 4);
+  assertEqual(count("midfielder"), 4);
+  assertEqual(count("striker"), 2);
 });
 
 test("Formation mirrors the 11-player midfield and shifts it with team state", function () {
@@ -263,7 +270,7 @@ test("Formation supports a corner attack when no defender role exists", function
   var positions = formation.positions("cornerUs", "home", 2);
 
   assertEqual(positions.length, 2);
-  assertEqual(formation.cornerCoverIndex(2), -1);
+  assertEqual(formation.cornerCoverIndexes(2).length, 0);
   assertEqual(
     positions[1].y,
     config.pitch.fieldTop + config.restarts.cornerBoxDepth,
@@ -276,7 +283,15 @@ test("Formation builds a mirrored layered 11-player corner plan", function () {
   var attack = formation.positions("attack", "home", 11);
   var home = formation.cornerAttackingPlan("home", 11, 9, true);
   var away = formation.cornerAttackingPlan("away", 11, 9, true);
-  var counts = {};
+  var counts: Record<CornerAssignment, number> = {
+    goalie: 0,
+    cover: 0,
+    taker: 0,
+    box: 0,
+    late: 0,
+    edge: 0,
+    short: 0,
+  };
 
   for (var i = 0; i < home.groups.length; i++) {
     counts[home.groups[i]] = (counts[home.groups[i]] || 0) + 1;

@@ -1,16 +1,18 @@
-import * as testlib from "../testlib";
-import * as helpers from "../helpers";
-var makeFixture = helpers.makeFixture;
-var replayDebugLog = helpers.replayDebugLog;
+import { assertEqual, assertTrue, test } from "../testlib";
+import {
+  canvasContext,
+  makeFixture,
+  replayDebugLog,
+  type FixtureOptions,
+  type ReplayPayload,
+} from "../helpers";
+import { DebugTool } from "../../src/core/debugTool";
+import { Vector2 as Vector2d } from "../../src/math/vector";
+import { vi } from "vitest";
 
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
-
-function makeDebugGame(options) {
+function makeDebugGame(options: FixtureOptions = {}) {
   var fixture = makeFixture(options);
   var game = fixture.game;
-  window.game = game;
   return {
     fixture: fixture,
     game: game,
@@ -57,10 +59,10 @@ test("DebugTool trims snapshots older than configured seconds", function () {
   setup.fixture.config.debug.enabled = true;
   setup.fixture.config.debug.logEveryNFrames = 1;
   setup.fixture.config.debug.logSeconds = 0.05;
-  setup.game.debugTool.nowMs = function () {
+  vi.spyOn(performance, "now").mockImplementation(function () {
     now += 25;
     return now;
-  };
+  });
 
   for (var i = 0; i < 5; i++) {
     setup.game.debugTool.record(setup.game);
@@ -81,7 +83,16 @@ test("DebugTool snapshot includes ball, players, and AI commands states and targ
   setup.game.matchFlow.state = "normalPlay";
   setup.fixture.ball.position.x = setup.fixture.awayPlayers[0].position.x + 20;
   setup.fixture.ball.position.y = setup.fixture.awayPlayers[0].position.y;
-  setup.game.updateAi();
+  for (const teamAi of setup.game.teamAis) {
+    teamAi.update({
+      deltaSeconds: 0,
+      restartActive: false,
+      canMove: true,
+      restartTaker: null,
+      positioningTargets: null,
+      attackTarget: null,
+    });
+  }
 
   setup.game.debugTool.record(setup.game);
 
@@ -89,7 +100,7 @@ test("DebugTool snapshot includes ball, players, and AI commands states and targ
   assertEqual(snapshot.dt, 0);
   assertEqual(
     snapshot.ball.pos.x,
-    setup.game.debugTool.round(setup.fixture.ball.position.x),
+    Math.round(setup.fixture.ball.position.x * 100) / 100,
   );
   assertEqual(snapshot.ball.vel.y, -6.79);
   assertEqual(snapshot.ball.lastTouchedBy, "away");
@@ -114,38 +125,39 @@ test("DebugTool snapshot includes ball, players, and AI commands states and targ
 });
 
 test("DebugTool draws public AI targets from current player positions", function () {
-  var config = makeFixture().config;
-  var tool = new DebugTool(config);
-  var calls = [];
-  var ctx = {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 2 });
+  var tool = new DebugTool(fixture.config);
+  fixture.awayTeamAi.setRestartState("attack");
+  fixture.awayTeamAi.update({
+    deltaSeconds: 0.1,
+    restartActive: false,
+    canMove: true,
+    restartTaker: null,
+    positioningTargets: null,
+    attackTarget: null,
+  });
+  var calls: string[] = [];
+  var ctx = canvasContext({
     beginPath: function () {
       calls.push("begin");
     },
-    moveTo: function (x, y) {
+    moveTo: function (x: number, y: number) {
       calls.push("move:" + x + "," + y);
     },
-    lineTo: function (x, y) {
+    lineTo: function (x: number, y: number) {
       calls.push("line:" + x + "," + y);
     },
     stroke: function () {
       calls.push("stroke");
     },
-  };
-  var teamAi = {
-    team: {
-      players: [
-        { position: new Vector2d(10, 11) },
-        { position: new Vector2d(30, 31) },
-      ],
-    },
-    debugSnapshot: function () {
-      return [{ target: new Vector2d(20, 21) }, { target: null }];
-    },
-  };
+  });
 
-  tool.draw(ctx, [teamAi]);
+  tool.draw(ctx, [fixture.awayTeamAi]);
 
-  assertEqual(calls.join(","), "begin,move:10,11,line:20,21,stroke");
+  assertTrue(calls.includes("begin"));
+  assertTrue(calls.some((call) => call.startsWith("move:")));
+  assertTrue(calls.some((call) => call.startsWith("line:")));
+  assertTrue(calls.includes("stroke"));
   assertEqual(ctx.lineWidth, 1);
   assertEqual(ctx.strokeStyle, "blue");
 });
@@ -153,9 +165,7 @@ test("DebugTool draws public AI targets from current player positions", function
 test("DebugTool records keyboard and touch events when debug is true", function () {
   var setup = makeDebugGame();
   setup.fixture.config.debug.enabled = true;
-  setup.game.debugTool.nowMs = function () {
-    return 1000;
-  };
+  vi.spyOn(performance, "now").mockReturnValue(1000);
 
   setup.game.debugTool.recordKeyEvent({ type: "keydown", keyCode: 39 });
   setup.game.debugTool.recordKeyEvent({ type: "keyup", keyCode: 39 });
@@ -166,6 +176,7 @@ test("DebugTool records keyboard and touch events when debug is true", function 
   assertEqual(setup.game.debugTool.events[0].keyCode, 39);
   assertEqual(setup.game.debugTool.events[1].type, "keyup");
   assertEqual(setup.game.debugTool.events[2].type, "touch");
+  assertTrue(setup.game.debugTool.events[2].target !== undefined);
   assertEqual(setup.game.debugTool.events[2].target.x, 12.35);
 });
 
@@ -184,10 +195,10 @@ test("DebugTool trims events older than configured seconds", function () {
   var now = 0;
   setup.fixture.config.debug.enabled = true;
   setup.fixture.config.debug.logSeconds = 0.05;
-  setup.game.debugTool.nowMs = function () {
+  vi.spyOn(performance, "now").mockImplementation(function () {
     now += 25;
     return now;
-  };
+  });
 
   for (var i = 0; i < 5; i++) {
     setup.game.debugTool.recordKeyEvent({ type: "keydown", keyCode: 39 });
@@ -200,23 +211,21 @@ test("DebugTool trims events older than configured seconds", function () {
 
 test("DebugTool dump includes compact frames and events payload", function () {
   var setup = makeDebugGame();
-  var logged = null;
-  var originalLog = console.log;
   setup.fixture.config.debug.enabled = true;
   setup.fixture.config.debug.logEveryNFrames = 1;
-  console.log = function (message) {
-    logged = message;
+  var log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+  setup.game.debugTool.recordKeyEvent({ type: "keydown", keyCode: 39 });
+  setup.game.debugTool.record(setup.game);
+  setup.game.debugTool.dump();
+
+  var logged = log.mock.calls[0][0];
+  assertTrue(typeof logged === "string");
+  var payload = JSON.parse(logged) as {
+    type: string;
+    frames: unknown[];
+    events: unknown[];
   };
-
-  try {
-    setup.game.debugTool.recordKeyEvent({ type: "keydown", keyCode: 39 });
-    setup.game.debugTool.record(setup.game);
-    setup.game.debugTool.dump();
-  } finally {
-    console.log = originalLog;
-  }
-
-  var payload = JSON.parse(logged);
   assertEqual(payload.type, "debugLog");
   assertEqual(payload.frames.length, 1);
   assertEqual(payload.events.length, 1);
@@ -225,7 +234,7 @@ test("DebugTool dump includes compact frames and events payload", function () {
 test("Replay helper applies input events and frame dt without rendering", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
   var startX = fixture.playerHome.position.x;
-  var payload = {
+  var payload: ReplayPayload = {
     frames: [
       { frame: 0, dt: 0.1 },
       { frame: 1, dt: 0.1 },

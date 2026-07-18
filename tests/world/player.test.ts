@@ -1,9 +1,5 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
-
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
+import { assertEqual, assertNear, test } from "../testlib";
+import { advancePhysics, canvasContext, makeFixture } from "../helpers";
 
 test("Player updateFacing maps movement vectors", function () {
   var fixture = makeFixture();
@@ -85,7 +81,7 @@ test("Player draw does not reset walk state when velocity is momentarily zero", 
     drawImage: function () {},
   };
 
-  player.draw(ctx);
+  player.draw(canvasContext(ctx));
 
   assertEqual(player.phaseIndex, 1);
   assertEqual(player.stepDistance, 2);
@@ -93,10 +89,11 @@ test("Player draw does not reset walk state when velocity is momentarily zero", 
 
 test("Player advances its walk phase from distance travelled when rendered", function () {
   var fixture = makeFixture();
+  fixture.config.physics.maxDeltaSeconds = 1;
   var player = fixture.playerHome;
   player.velocity.x = 10;
 
-  fixture.physics.updatePlayerPositions(1);
+  advancePhysics(fixture, 1, "playersOnly");
 
   assertEqual(player.phaseIndex, 0);
   assertEqual(player.stepDistance, 0);
@@ -110,9 +107,10 @@ test("Player advances its walk phase from distance travelled when rendered", fun
 
 test("Player preserves partial walk distance while stationary", function () {
   var fixture = makeFixture();
+  fixture.config.physics.maxDeltaSeconds = 1;
   var player = fixture.playerHome;
   player.velocity.x = 3;
-  fixture.physics.updatePlayerPositions(1);
+  advancePhysics(fixture, 1, "playersOnly");
 
   player.spriteFrame(0);
   player.velocity.x = 0;

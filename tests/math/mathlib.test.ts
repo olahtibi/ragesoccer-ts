@@ -1,8 +1,6 @@
-import * as testlib from "../testlib";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertNear = testlib.assertNear;
+import { assertNear, assertTrue, test } from "../testlib";
+import { math as MathLib } from "../../src/math/math";
+import { Vector2 as Vector2d } from "../../src/math/vector";
 
 test("MathLib computes cardinal angles in radians", function () {
   assertNear(MathLib.computeAngleRadians(1, 0), 0, 0.0001);

@@ -1,11 +1,8 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
+import { assertEqual, assertTrue, test } from "../testlib";
+import { canvasContext, completePositioning, makeFixture } from "../helpers";
 import * as fs from "node:fs";
 import * as path from "node:path";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
+import { Game } from "../../src/core/game";
 
 test("Game composes explicit controllers without putting them on Stadium", function () {
   var fixture = makeFixture();
@@ -13,16 +10,16 @@ test("Game composes explicit controllers without putting them on Stadium", funct
 
   assertEqual(fixture.game.teamAis.length, 2);
   assertTrue(fixture.game.humanController !== null);
-  assertEqual(fixture.game.restartController, undefined);
+  assertEqual("restartController" in fixture.game, false);
   assertTrue(fixture.game.matchFlow.restartController !== null);
   assertTrue(fixture.game.matchFlow.boundaryDetector !== null);
   assertTrue(fixture.game.debugTool !== null);
-  assertEqual(fixture.game.debugLog, undefined);
-  assertEqual(fixture.game.goalDetector, undefined);
-  assertEqual(fixture.game.boundaryDetector, undefined);
-  assertEqual(fixture.game.positioningController, undefined);
-  assertEqual(fixture.stadium.updateAi, undefined);
-  assertEqual(context.game, undefined);
+  assertEqual("debugLog" in fixture.game, false);
+  assertEqual("goalDetector" in fixture.game, false);
+  assertEqual("boundaryDetector" in fixture.game, false);
+  assertEqual("positioningController" in fixture.game, false);
+  assertEqual("updateAi" in fixture.stadium, false);
+  assertEqual("game" in context, false);
   assertTrue(context.camera === fixture.game.camera);
 });
 
@@ -32,11 +29,12 @@ test("Game update contains no kickoff-specific branch", function () {
 
 test("Full simulation updates AI human input physics restart and score in order", function () {
   var fixture = makeFixture();
-  var order = [];
+  var order: string[] = [];
   fixture.game.matchFlow.state = "normalPlay";
-  fixture.game.updateAi = function () {
+  fixture.game.teamAis[0].update = function () {
     order.push("ai");
   };
+  fixture.game.teamAis[1].update = function () {};
   fixture.game.humanController.update = function () {
     order.push("human");
   };
@@ -48,6 +46,7 @@ test("Full simulation updates AI human input physics restart and score in order"
   };
   fixture.game.matchFlow.detectPostPhysicsEvents = function () {
     order.push("matchRules");
+    return false;
   };
   fixture.game.debugTool.record = function () {
     order.push("debug");
@@ -71,6 +70,7 @@ test("A goal result takes priority over out-of-play detection", function () {
   };
   fixture.game.matchFlow.detectOutOfPlay = function () {
     outUpdates++;
+    return false;
   };
 
   fixture.game.update();
@@ -81,7 +81,7 @@ test("A goal result takes priority over out-of-play detection", function () {
 
 test("Positioning simulation updates its controller around player-only physics", function () {
   var fixture = makeFixture();
-  var order = [];
+  var order: string[] = [];
   fixture.game.beginRestart("kickoff", "home");
   fixture.game.matchFlow.updateBeforePhysics = function () {
     order.push("before");
@@ -121,7 +121,7 @@ test("Paused and waiting states reset the physics clock", function () {
 test("Game renders AI debug through DebugTool only while paused", function () {
   var fixture = makeFixture();
   var draws = 0;
-  var ctx = {};
+  var ctx = canvasContext({});
   fixture.config.debug.enabled = false;
   fixture.game.camera.windowToViewport = function () {};
   fixture.game.camera.renderOverlay = function () {};
@@ -180,7 +180,7 @@ test("A home goal kickoff waits for fresh input after positioning", function () 
   fixture.ball.position.y = 758;
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
-  fixture.positioningController.clear(fixture.game.context());
+  completePositioning(fixture);
 
   assertEqual(fixture.restartController.phase(), "waitingForInput");
   assertEqual(fixture.game.matchFlow.simulationMode(), "none");

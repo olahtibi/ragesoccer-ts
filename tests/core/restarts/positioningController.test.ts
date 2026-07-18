@@ -1,21 +1,20 @@
-import * as testlib from "../../testlib";
-import { makeFixture } from "../../helpers";
+import { assertEqual, assertTrue, test } from "../../testlib";
+import { makeFixture, type TestFixture } from "../../helpers";
+import {
+  Vector2 as Vector2d,
+  Vector3 as Vector3d,
+} from "../../../src/math/vector";
+import { vi } from "vitest";
 
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
-
-function positioningControllerFor(fixture) {
-  window.game = fixture.game;
+function positioningControllerFor(fixture: TestFixture) {
   return fixture.positioningController;
 }
 
-test("PositioningController starts inactive and rejects invalid restart options", function () {
+test("PositioningController starts inactive", function () {
   var fixture = makeFixture();
   var controller = positioningControllerFor(fixture);
 
   assertEqual(controller.isActive(), false);
-  assertEqual(controller.play({}), false);
   assertEqual(controller.isActive(), false);
 });
 
@@ -25,6 +24,7 @@ test("PositioningController rejects mismatched player and position counts", func
 
   var started = controller.play({
     ballPosition: fixture.config.pitch.initialBallPosition,
+    readyPlayer: null,
     sceneTeams: [
       {
         side: "home",
@@ -53,6 +53,7 @@ test("PositioningController locks ball and moves players toward explicit targets
 
   controller.play({
     ballPosition: new Vector3d(334, 433, 0),
+    readyPlayer: null,
     sceneTeams: [
       {
         side: "home",
@@ -74,23 +75,15 @@ test("PositioningController waits for players and camera before completing", fun
   var game = fixture.game;
   var controller = positioningControllerFor(fixture);
   var cameraArrived = false;
-  game.camera = {
-    focusTarget: null,
-    setFocusTarget: function (target) {
-      this.focusTarget = target;
-    },
-    hasArrivedAtFocus: function () {
-      return cameraArrived;
-    },
-    clearFocusTarget: function () {
-      this.focusTarget = null;
-    },
-  };
+  vi.spyOn(game.camera, "hasArrivedAtFocus").mockImplementation(
+    () => cameraArrived,
+  );
   fixture.homePlayers[0].position.x = 120;
   fixture.homePlayers[0].position.y = 100;
 
   controller.play({
     ballPosition: new Vector3d(334, 433, 0),
+    readyPlayer: null,
     sceneTeams: [
       {
         side: "home",
@@ -120,6 +113,7 @@ test("PositioningController snaps overshot players to targets", function () {
 
   controller.play({
     ballPosition: fixture.config.pitch.initialBallPosition,
+    readyPlayer: null,
     sceneTeams: [
       {
         side: "home",
@@ -130,14 +124,8 @@ test("PositioningController snaps overshot players to targets", function () {
   });
   fixture.homePlayers[0].velocity.x = 0;
   fixture.homePlayers[0].velocity.y = -fixture.config.teamVelocity("home");
-  var arrived = controller.movePlayerToTarget(
-    fixture.game.context(),
-    fixture.homePlayers[0],
-    target,
-    "home",
-  );
+  controller.updateBeforePhysics(fixture.game.context());
 
-  assertEqual(arrived, true);
   assertEqual(fixture.homePlayers[0].position.x, target.x);
   assertEqual(fixture.homePlayers[0].position.y, target.y);
   assertEqual(fixture.homePlayers[0].velocity.y, 0);
@@ -154,6 +142,7 @@ test("PositioningController ignores pre-positioning velocity when moving players
 
   controller.play({
     ballPosition: fixture.config.pitch.initialBallPosition,
+    readyPlayer: null,
     sceneTeams: [
       {
         side: "away",

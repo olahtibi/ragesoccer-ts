@@ -1,9 +1,7 @@
-import * as testlib from "../../testlib";
+import { assertEqual, assertNear, test } from "../../testlib";
 import { makeFixture } from "../../helpers";
-
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
+import { IndividualAi } from "../../../src/ai/individualAi";
+import { Vector2 as Vector2d } from "../../../src/math/vector";
 
 test("moveToPosition sets velocity toward target", function () {
   var fixture = makeFixture();
@@ -16,7 +14,7 @@ test("moveToPosition sets velocity toward target", function () {
   fixture.playerAway.position.y = 10;
 
   ai.setCommand("moveToPosition", new Vector2d(10, 20));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
 
   var arrivalFactor =
     fixture.config.ai.arrivalMinSpeedFactor +
@@ -43,7 +41,7 @@ test("moveToPosition applies formation pace outside the arrival radius", functio
   ai.formationPaceMultiplier = 0.92;
 
   ai.setCommand("moveToPosition", new Vector2d(10, 60));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
 
   assertNear(
     fixture.playerAway.velocity.y,
@@ -65,7 +63,7 @@ test("moveToPosition stops at target", function () {
   fixture.playerAway.velocity.y = 3;
 
   ai.setCommand("moveToPosition", new Vector2d(10, 10));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
 
   assertEqual(fixture.playerAway.velocity.x, 0);
   assertEqual(fixture.playerAway.velocity.y, 0);
@@ -83,18 +81,18 @@ test("moveToPosition uses hysteresis before resuming near a drifting target", fu
   fixture.playerAway.position.y = 10;
 
   ai.setCommand("moveToPosition", new Vector2d(10, 13));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
   assertEqual(ai.debugSnapshot().state, "stopped");
 
   ai.setCommand("moveToPosition", new Vector2d(10, 15));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
   assertEqual(ai.debugSnapshot().state, "moving");
 
   ai.setCommand("moveToPosition", new Vector2d(10, 11.5));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
   assertEqual(ai.debugSnapshot().state, "stopped");
 
   ai.setCommand("moveToPosition", new Vector2d(10, 13));
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
   assertEqual(ai.debugSnapshot().state, "stopped");
 });

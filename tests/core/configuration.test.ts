@@ -1,9 +1,5 @@
-import * as testlib from "../testlib";
+import { assertEqual, assertNear, test } from "../testlib";
 import { makeConfig } from "../helpers";
-
-var test = testlib.test;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
 
 // Don't make asserts on how test tool works
 // test("Test helper overrides production team-size defaults", function() {
@@ -37,9 +33,9 @@ test("Configuration defaults strength and team-size options", function () {
   assertEqual(config.restarts.cornerBoxSpacing, 34);
   assertEqual(config.restarts.cornerBoxDepth, 45);
   assertEqual(config.restarts.cornerLateRunReleaseDistance, 35);
-  assertEqual(config.playerStrength, undefined);
-  assertEqual(config.fieldLeft, undefined);
-  assertEqual(config.ballRadius, undefined);
+  assertEqual("playerStrength" in config, false);
+  assertEqual("fieldLeft" in config, false);
+  assertEqual("ballRadius" in config, false);
 });
 
 test("Configuration maps strength to velocity", function () {

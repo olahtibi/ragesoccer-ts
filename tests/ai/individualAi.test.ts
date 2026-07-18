@@ -1,9 +1,7 @@
-import * as testlib from "../testlib";
+import { assertEqual, assertTrue, test } from "../testlib";
 import { makeFixture } from "../helpers";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
+import { IndividualAi } from "../../src/ai/individualAi";
+import { Vector2 as Vector2d } from "../../src/math/vector";
 
 test("IndividualAi dispatches command and exposes debug snapshot", function () {
   var fixture = makeFixture();
@@ -15,7 +13,7 @@ test("IndividualAi dispatches command and exposes debug snapshot", function () {
   var target = new Vector2d(10, 20);
 
   ai.setCommand("moveToPosition", target);
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
   var snapshot = ai.debugSnapshot();
 
   assertEqual(snapshot.command, "moveToPosition");
@@ -36,7 +34,7 @@ test("IndividualAi resets previous command when command changes", function () {
   fixture.ball.position.y = 400;
 
   ai.setCommand("attackBall", null);
-  ai.update({ ball: fixture.ball });
+  ai.update({ ball: fixture.ball, attackTarget: null });
   assertTrue(ai.debugSnapshot().attackOrbitDir !== 0);
 
   ai.setCommand("moveToPosition", new Vector2d(400, 400));

@@ -1,16 +1,28 @@
-import * as testlib from "../testlib";
+import { assertEqual, assertNear, assertTrue, test } from "../testlib";
 import { makeFixture } from "../helpers";
+import { Formation } from "../../src/ai/formation";
+import type { TeamAi, TeamAiUpdateContext } from "../../src/ai/teamAi";
+import { Vector2 as Vector2d } from "../../src/math/vector";
+import type { Vector2 } from "../../src/math/vector";
 
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
-
-function update(ai, restartActive, canMove) {
-  ai.update({ restartActive: restartActive, canMove: canMove });
+function update(
+  ai: TeamAi,
+  restartActive: boolean,
+  canMove: boolean,
+  overrides: Partial<TeamAiUpdateContext> = {},
+): void {
+  ai.update({
+    deltaSeconds: 1 / 60,
+    restartActive,
+    canMove,
+    restartTaker: null,
+    positioningTargets: null,
+    attackTarget: null,
+    ...overrides,
+  });
 }
 
-function attackBallIndex(ai) {
+function attackBallIndex(ai: TeamAi): number {
   var snapshots = ai.debugSnapshot();
   for (var i = 0; i < snapshots.length; i++) {
     if (snapshots[i].command == "attackBall") return i;
@@ -18,13 +30,20 @@ function attackBallIndex(ai) {
   return -1;
 }
 
-function attackBallCount(ai) {
+function attackBallCount(ai: TeamAi): number {
   var snapshots = ai.debugSnapshot();
   var count = 0;
   for (var i = 0; i < snapshots.length; i++) {
     if (snapshots[i].command == "attackBall") count++;
   }
   return count;
+}
+
+function movementTargets(ai: TeamAi): Vector2[] {
+  return ai.debugSnapshot().map((snapshot) => {
+    assertTrue(snapshot.target !== null);
+    return snapshot.target;
+  });
 }
 
 test("TeamAi kickoff states are relative to each team", function () {
@@ -134,12 +153,10 @@ test("TeamAi disabled skips updates", function () {
 
 test("TeamAi can run without window.game or input globals", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
-  var originalGame = window.game;
-  window.game = null;
+  assertTrue(!("game" in window));
 
   update(fixture.awayTeamAi, false, true);
 
-  window.game = originalGame;
   assertEqual(attackBallIndex(fixture.awayTeamAi), 0);
 });
 
@@ -205,14 +222,23 @@ test("TeamAi retains layered support targets after the corner restart clears", f
       fixture.config.pitch.fieldBottom,
     ),
   });
-  fixture.game.updateAi();
+  update(fixture.awayTeamAi, true, true, {
+    restartTaker: fixture.restartController.taker(fixture.awayTeam),
+    positioningTargets: fixture.restartController.positioningTargets(
+      fixture.awayTeam,
+    ),
+    attackTarget: fixture.restartController.attackTarget(fixture.awayTeam),
+  });
   var taker = fixture.restartController.taker(fixture.awayTeam);
+  assertTrue(taker !== null);
   var takerIndex = fixture.awayPlayers.indexOf(taker);
   var groups = new Formation(fixture.config).cornerAssignments(11, takerIndex);
   var shortIndex = groups.indexOf("short");
-  var expectedTarget = fixture.restartController.positioningTargets(
+  var positioningTargets = fixture.restartController.positioningTargets(
     fixture.awayTeam,
-  )[shortIndex];
+  );
+  assertTrue(positioningTargets !== null);
+  var expectedTarget = positioningTargets[shortIndex];
 
   fixture.restartController.clear();
   fixture.game.matchFlow.state = "normalPlay";
@@ -274,21 +300,29 @@ test("TeamAi creates deterministic balanced formation movement profiles", functi
 
 test("TeamAi flexes open-play targets by player and role while keeping goalie exact", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 11 });
+  var baseline = makeFixture({ homeTeamSize: 1, awayTeamSize: 11 });
   var ai = fixture.awayTeamAi;
   var baseTargets = ai.formation.positions("attack", "away", 11);
   fixture.ball.position.x = fixture.config.pitch.initialBallPosition.x + 200;
   fixture.ball.position.y = fixture.config.pitch.initialBallPosition.y + 100;
 
-  var targets = ai.openPlayTargets(baseTargets, 0.1);
-  var defenderShift = ai.ballShiftForRole("defender");
-  var midfielderShift = ai.ballShiftForRole("midfielder");
+  ai.setRestartState("attack");
+  baseline.awayTeamAi.setRestartState("attack");
+  update(ai, false, true, { deltaSeconds: 0.1 });
+  update(baseline.awayTeamAi, false, true, { deltaSeconds: 0.1 });
+  var targets = movementTargets(ai);
+  var baselineTargets = movementTargets(baseline.awayTeamAi);
 
-  assertTrue(targets[0] === baseTargets[0]);
+  assertNear(targets[0].x, baseTargets[0].x, 0.0000001);
+  assertNear(targets[0].y, baseTargets[0].y, 0.0000001);
   assertTrue(
     targets[1].x != baseTargets[1].x || targets[1].y != baseTargets[1].y,
   );
   assertTrue(targets[2].x != targets[1].x);
-  assertTrue(midfielderShift.x > defenderShift.x);
+  assertTrue(
+    Math.abs(targets[5].x - baselineTargets[5].x) >
+      Math.abs(targets[1].x - baselineTargets[1].x),
+  );
   for (var i = 0; i < targets.length; i++) {
     assertTrue(targets[i].x >= fixture.config.pitch.boxTopLeft.x);
     assertTrue(targets[i].x <= fixture.config.pitch.boxTopRight.x);
@@ -300,16 +334,18 @@ test("TeamAi flexes open-play targets by player and role while keeping goalie ex
 test("TeamAi independently wanders player depth instead of preserving flat lines", function () {
   var first = makeFixture({ homeTeamSize: 1, awayTeamSize: 11 });
   var second = makeFixture({ homeTeamSize: 1, awayTeamSize: 11 });
-  var firstBase = first.awayTeamAi.formation.positions("attack", "away", 11);
-  var secondBase = second.awayTeamAi.formation.positions("attack", "away", 11);
-  var firstTargets;
-  var secondTargets;
+  first.awayTeamAi.setRestartState("attack");
+  second.awayTeamAi.setRestartState("attack");
+  var firstTargets: Vector2[] = [];
+  var secondTargets: Vector2[] = [];
   var maxObservedSpread = 0;
   var initialDefenderY = null;
 
   for (var frame = 0; frame < 240; frame++) {
-    firstTargets = first.awayTeamAi.openPlayTargets(firstBase, 1 / 30);
-    secondTargets = second.awayTeamAi.openPlayTargets(secondBase, 1 / 30);
+    update(first.awayTeamAi, false, true, { deltaSeconds: 1 / 30 });
+    update(second.awayTeamAi, false, true, { deltaSeconds: 1 / 30 });
+    firstTargets = movementTargets(first.awayTeamAi);
+    secondTargets = movementTargets(second.awayTeamAi);
     if (initialDefenderY == null) initialDefenderY = firstTargets[1].y;
     var frameMinY = Infinity;
     var frameMaxY = -Infinity;
@@ -320,6 +356,7 @@ test("TeamAi independently wanders player depth instead of preserving flat lines
     maxObservedSpread = Math.max(maxObservedSpread, frameMaxY - frameMinY);
   }
 
+  assertTrue(initialDefenderY !== null);
   for (var i = 1; i <= 4; i++) {
     assertNear(firstTargets[i].x, secondTargets[i].x, 0.0000001);
     assertNear(firstTargets[i].y, secondTargets[i].y, 0.0000001);
@@ -329,30 +366,36 @@ test("TeamAi independently wanders player depth instead of preserving flat lines
 });
 
 test("TeamAi gently separates crowded formation destinations", function () {
-  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 3 });
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 4 });
   var ai = fixture.awayTeamAi;
+  fixture.ball.position.x = fixture.awayPlayers[3].position.x;
+  fixture.ball.position.y = fixture.awayPlayers[3].position.y;
+  ai.setRestartState("attack");
+  update(ai, false, true, { deltaSeconds: 0.1 });
+  var unseparated = movementTargets(ai);
   fixture.awayPlayers[0].position.x = 100;
   fixture.awayPlayers[0].position.y = 100;
   fixture.awayPlayers[1].position.x = 300;
   fixture.awayPlayers[1].position.y = 300;
   fixture.awayPlayers[2].position.x = 300;
   fixture.awayPlayers[2].position.y = 300;
-  var targets = [
-    new Vector2d(100, 100),
-    new Vector2d(300, 300),
-    new Vector2d(300, 300),
-  ];
+  update(ai, false, true, { deltaSeconds: 0.1 });
+  var separated = movementTargets(ai);
 
-  var separated = ai.separateFormationTargets(targets);
-
-  assertTrue(separated[1].x < targets[1].x);
-  assertTrue(separated[2].x > targets[2].x);
   assertTrue(
-    targets[1].x - separated[1].x <=
+    separated[1].x < unseparated[1].x,
+    `Expected player 1 target to shift left: ${unseparated[1].x} -> ${separated[1].x}`,
+  );
+  assertTrue(
+    separated[2].x > unseparated[2].x,
+    `Expected player 2 target to shift right: ${unseparated[2].x} -> ${separated[2].x}`,
+  );
+  assertTrue(
+    unseparated[1].x - separated[1].x <=
       fixture.config.ai.formationSeparationMaxShift,
   );
   assertTrue(
-    separated[2].x - targets[2].x <=
+    separated[2].x - unseparated[2].x <=
       fixture.config.ai.formationSeparationMaxShift,
   );
 });
@@ -360,8 +403,8 @@ test("TeamAi gently separates crowded formation destinations", function () {
 test("TeamAi uses exact targets and clears smoothing during restart setup", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 5 });
   var ai = fixture.awayTeamAi;
-  var openTargets = ai.formation.positions("attack", "away", 5);
-  ai.openPlayTargets(openTargets, 0.1);
+  ai.setRestartState("attack");
+  update(ai, false, true, { deltaSeconds: 0.1 });
   var restartTargets = ai.formation.positions("kickoffUs", "away", 5);
 
   ai.update({
@@ -370,6 +413,7 @@ test("TeamAi uses exact targets and clears smoothing during restart setup", func
     restartTaker: fixture.awayPlayers[0],
     positioningTargets: restartTargets,
     deltaSeconds: 0.1,
+    attackTarget: null,
   });
 
   assertTrue(ai.debugSnapshot()[1].target === restartTargets[1]);

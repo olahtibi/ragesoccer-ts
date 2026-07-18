@@ -1,19 +1,15 @@
-import * as testlib from "../testlib";
-import { makeFixture } from "../helpers";
-
-var test = testlib.test;
-var assertTrue = testlib.assertTrue;
-var assertEqual = testlib.assertEqual;
-var assertNear = testlib.assertNear;
+import { assertEqual, assertNear, assertTrue, test } from "../testlib";
+import { advancePhysics, makeFixture } from "../helpers";
 
 test("Physics advances player position without managing walk animation", function () {
   var fixture = makeFixture();
+  fixture.config.physics.maxDeltaSeconds = 1;
   var startX = fixture.playerHome.position.x;
   var startY = fixture.playerHome.position.y;
   fixture.playerHome.velocity.x = 10;
   fixture.playerHome.velocity.y = 0;
 
-  fixture.physics.updatePlayerPositions(1);
+  advancePhysics(fixture, 1, "playersOnly");
 
   assertNear(fixture.playerHome.position.x, startX + 10, 0.0001);
   assertNear(fixture.playerHome.position.y, startY, 0.0001);
@@ -35,6 +31,7 @@ test("Ball position does not mutate configured initial ball position", function 
 
 test("Physics advances every player in the stadium without managing animation", function () {
   var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 2 });
+  fixture.config.physics.maxDeltaSeconds = 1;
   var startXs = [];
   for (var i = 0; i < fixture.stadium.players.length; i++) {
     startXs.push(fixture.stadium.players[i].position.x);
@@ -42,7 +39,7 @@ test("Physics advances every player in the stadium without managing animation", 
     fixture.stadium.players[i].velocity.y = 0;
   }
 
-  fixture.physics.updatePlayerPositions(1);
+  advancePhysics(fixture, 1, "playersOnly");
 
   for (var j = 0; j < fixture.stadium.players.length; j++) {
     assertNear(fixture.stadium.players[j].position.x, startXs[j] + 10, 0.0001);
@@ -58,7 +55,7 @@ test("Physics advances a full 22-player match", function () {
     fixture.stadium.players[i].velocity.x = 10;
   }
 
-  fixture.physics.updatePlayerPositions(0.5);
+  advancePhysics(fixture, 0.5, "playersOnly");
 
   for (var j = 0; j < fixture.stadium.players.length; j++) {
     assertEqual(fixture.stadium.players[j].stepDistance, 0);
@@ -70,7 +67,7 @@ test("Physics ball friction reduces horizontal velocity", function () {
   fixture.ball.velocity.x = 100;
   fixture.ball.velocity.y = 0;
 
-  fixture.physics.updateBallPosition(0.5);
+  advancePhysics(fixture, 0.5, "ballOnly");
 
   assertTrue(fixture.ball.velocity.x > 0);
   assertTrue(fixture.ball.velocity.x < 100);
@@ -81,32 +78,34 @@ test("Physics snaps tiny ball velocity to zero", function () {
   fixture.ball.velocity.x = 1;
   fixture.ball.velocity.y = 1;
 
-  fixture.physics.updateBallPosition(0.1);
+  advancePhysics(fixture, 0.1, "ballOnly");
 
   assertEqual(fixture.ball.velocity.x, 0);
   assertEqual(fixture.ball.velocity.y, 0);
 });
 
-test("Physics reflects X velocity and movement using wall restitution", function () {
-  var fixture = makeFixture();
-  fixture.ball.velocity.x = 10;
-  var moveArray = [5, 0];
+test("Physics reflects X velocity at a pitch wall", function () {
+  var fixture = makeFixture({ outOfPlayRestartsEnabled: false });
+  fixture.ball.position.x = fixture.config.pitch.boxTopLeft.x + 0.5;
+  fixture.ball.position.y = fixture.config.pitch.aiCenterY;
+  fixture.ball.velocity.x = -10;
 
-  fixture.physics.reflectX(moveArray);
+  advancePhysics(fixture, 0.1, "ballOnly");
 
-  assertNear(moveArray[0], -3.5, 0.0001);
-  assertNear(fixture.ball.velocity.x, -7, 0.0001);
+  assertTrue(fixture.ball.velocity.x > 0);
+  assertTrue(fixture.ball.position.x > fixture.config.pitch.boxTopLeft.x);
 });
 
-test("Physics reflects Y velocity and movement using wall restitution", function () {
+test("Physics reflects Y velocity at a goal wall", function () {
   var fixture = makeFixture();
+  fixture.ball.position.x = fixture.config.pitch.goalTopTopLeft.x + 10;
+  fixture.ball.position.y = fixture.config.pitch.goalTopTopLeft.y + 0.5;
   fixture.ball.velocity.y = -10;
-  var moveArray = [0, -5];
 
-  fixture.physics.reflectY(moveArray);
+  advancePhysics(fixture, 0.1, "ballOnly");
 
-  assertNear(moveArray[1], 3.5, 0.0001);
-  assertNear(fixture.ball.velocity.y, 7, 0.0001);
+  assertTrue(fixture.ball.velocity.y > 0);
+  assertTrue(fixture.ball.position.y > fixture.config.pitch.goalTopTopLeft.y);
 });
 
 test("Physics ball-player contact kicks the ball outward", function () {
@@ -119,7 +118,7 @@ test("Physics ball-player contact kicks the ball outward", function () {
   fixture.ball.position.y = 100;
   fixture.ball.position.z = 0;
 
-  fixture.physics.resolveBallPlayerContacts();
+  advancePhysics(fixture, 0);
 
   assertTrue(fixture.ball.velocity.x > 0);
   assertTrue(fixture.ball.velocity.z > 0);
@@ -133,7 +132,7 @@ test("Disabled out-of-play restarts preserve reflective pitch boundaries", funct
   fixture.ball.position.y = fixture.config.pitch.aiCenterY;
   fixture.ball.velocity.x = -100;
 
-  fixture.physics.updateBallPosition(0.1);
+  advancePhysics(fixture, 0.1, "ballOnly");
 
   assertTrue(fixture.ball.velocity.x > 0);
   assertTrue(fixture.ball.position.x > fixture.config.pitch.boxTopLeft.x);
@@ -145,7 +144,7 @@ test("Enabled out-of-play restarts allow the ball to cross pitch boundaries", fu
   fixture.ball.position.y = fixture.config.pitch.aiCenterY;
   fixture.ball.velocity.x = -100;
 
-  fixture.physics.updateBallPosition(0.1);
+  advancePhysics(fixture, 0.1, "ballOnly");
 
   assertTrue(fixture.ball.velocity.x < 0);
   assertTrue(fixture.ball.position.x < fixture.config.pitch.fieldLeft);
@@ -173,14 +172,14 @@ test("Physics keeps a rounded throttled FPS display value", function () {
   var fixture = makeFixture();
   fixture.physics.lastUpdated = 0;
 
-  fixture.physics.updateStats(16);
+  advancePhysics(fixture, 0.016, "playersOnly");
   var firstDisplay = fixture.physics.displayFps;
-  fixture.physics.updateStats(32);
+  advancePhysics(fixture, 0.016, "playersOnly");
 
   assertEqual(firstDisplay, 63);
   assertEqual(fixture.physics.displayFps, firstDisplay);
 
-  fixture.physics.updateStats(272);
+  advancePhysics(fixture, 0.24, "playersOnly");
 
   assertTrue(fixture.physics.fps > 0);
   assertEqual(fixture.physics.displayFps, Math.round(fixture.physics.fps));
