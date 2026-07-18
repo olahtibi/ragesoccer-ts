@@ -1,6 +1,7 @@
 import { Formation } from "../../ai/formation";
 import { Vector2 as Vector2d } from "../../math/vector";
 import type { Vector2 } from "../../math/vector";
+import { TEAM_SIDES } from "../../types";
 import type {
   GameContext,
   RestartRequest,
@@ -9,7 +10,6 @@ import type {
   TeamAiState,
   TeamSide,
 } from "../../types";
-import type { Team } from "../../world/team";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { KickoffRestart };
@@ -31,9 +31,9 @@ class KickoffRestart implements RestartStrategy {
   ): RestartScene {
     const sceneTeams: RestartScene["sceneTeams"] = [];
     let readyPlayer: RestartScene["readyPlayer"] = null;
-    for (let i = 0; i < context.teams.length; i++) {
-      const team = context.teams[i];
-      const state = this.teamAiState(team, request);
+    for (let i = 0; i < TEAM_SIDES.length; i++) {
+      const team = context.teams[TEAM_SIDES[i]];
+      const state = this.teamAiState(team.side, request);
       let takerIndex = -1;
       if (team.side == request.awardedTo) {
         takerIndex = this.formation.kickoffTakerIndex(team.players.length);
@@ -99,12 +99,12 @@ class KickoffRestart implements RestartStrategy {
     return result;
   }
 
-  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
-    return team.side == request.awardedTo ? "kickoffUs" : "kickoffOpponent";
+  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
+    return side == request.awardedTo ? "kickoffUs" : "kickoffOpponent";
   }
 
-  public canTeamMove(team: Team, request: RestartRequest): boolean {
-    return team.side == request.awardedTo;
+  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
+    return side == request.awardedTo;
   }
 
   public enforceRules(context: GameContext, request: RestartRequest): void {

@@ -8,8 +8,8 @@ import type {
   RestartScene,
   RestartStrategy,
   TeamAiState,
+  TeamSide,
 } from "../../types";
-import type { Team } from "../../world/team";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { CornerRestart };
@@ -89,11 +89,7 @@ class CornerRestart implements RestartStrategy {
     context: GameContext,
     request: RestartRequest,
   ): number {
-    for (let i = 0; i < context.teams.length; i++) {
-      if (context.teams[i].side == request.awardedTo)
-        return context.teams[i].players.length;
-    }
-    return 1;
+    return context.teams[request.awardedTo].players.length;
   }
 
   private takerIndex(
@@ -101,14 +97,7 @@ class CornerRestart implements RestartStrategy {
     request: RestartRequest,
     ballPosition: Vector2,
   ): number {
-    let team: Team | null = null;
-    for (let i = 0; i < context.teams.length; i++) {
-      if (context.teams[i].side == request.awardedTo) {
-        team = context.teams[i];
-        break;
-      }
-    }
-    if (team == null) return 0;
+    const team = context.teams[request.awardedTo];
 
     const formation = new Formation(this.config);
     const roles = formation.rolesForSize(team.players.length);
@@ -133,16 +122,16 @@ class CornerRestart implements RestartStrategy {
       : closestIndex;
   }
 
-  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
-    return RestartPositioning.stateFor("corner", team, request);
+  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
+    return RestartPositioning.stateFor("corner", side, request);
   }
 
-  public canTeamMove(team: Team, request: RestartRequest): boolean {
-    return team.side == request.awardedTo;
+  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
+    return side == request.awardedTo;
   }
 
-  public attackTarget(team: Team, request: RestartRequest): Vector2 | null {
-    if (team.side != request.awardedTo) return null;
+  public attackTarget(side: TeamSide, request: RestartRequest): Vector2 | null {
+    if (side != request.awardedTo) return null;
     return new Vector2d(
       this.config.pitch.initialBallPosition.x,
       request.awardedTo == "home"

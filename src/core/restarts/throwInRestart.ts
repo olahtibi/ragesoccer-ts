@@ -7,9 +7,9 @@ import type {
   RestartScene,
   RestartStrategy,
   TeamAiState,
+  TeamSide,
 } from "../../types";
 import type { Player } from "../../world/player";
-import type { Team } from "../../world/team";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { ThrowInRestart };
@@ -75,15 +75,10 @@ class ThrowInRestart implements RestartStrategy {
     request: RestartRequest,
     ballPosition: Vector2,
   ): Player | null {
-    for (let i = 0; i < context.teams.length; i++) {
-      if (context.teams[i].side == request.awardedTo) {
-        const team = context.teams[i];
-        return team.players[
-          RestartPositioning.closestPlayerIndex(team.players, ballPosition)
-        ];
-      }
-    }
-    return null;
+    const team = context.teams[request.awardedTo];
+    return team.players[
+      RestartPositioning.closestPlayerIndex(team.players, ballPosition)
+    ];
   }
 
   public onPositioned(context: GameContext, request: RestartRequest): void {
@@ -92,12 +87,12 @@ class ThrowInRestart implements RestartStrategy {
     this.taker.facingY = 0;
   }
 
-  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
-    return RestartPositioning.stateFor("throwIn", team, request);
+  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
+    return RestartPositioning.stateFor("throwIn", side, request);
   }
 
-  public canTeamMove(team: Team, request: RestartRequest): boolean {
-    return team.side == request.awardedTo;
+  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
+    return side == request.awardedTo;
   }
 
   public resume(

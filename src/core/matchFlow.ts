@@ -1,4 +1,5 @@
 import type { Vector2 } from "../math/vector";
+import type { TeamAiUpdateContext } from "../ai/teamAi";
 import type {
   BoundaryEvent,
   GameContext,
@@ -7,12 +8,12 @@ import type {
   RestartRequest,
   RestartType,
   SimulationMode,
+  TeamSide,
 } from "../types";
 import type { Ball } from "../world/ball";
 import type { BoundaryDetector } from "../world/detectors/boundaryDetector";
 import type { GoalDetector } from "../world/detectors/goalDetector";
 import type { Player } from "../world/player";
-import type { Team } from "../world/team";
 import type {
   RestartBeginOptions,
   RestartController,
@@ -121,24 +122,25 @@ class MatchFlow {
     );
   }
 
-  public canTeamMove(team: Team): boolean {
-    return this.state != "restart" || this.restartController.canTeamMove(team);
+  public canTeamMove(side: TeamSide): boolean {
+    return this.state != "restart" || this.restartController.canTeamMove(side);
   }
 
-  public restartTaker(team: Team): Player | null {
-    return this.state == "restart" ? this.restartController.taker(team) : null;
-  }
-
-  public restartPositioningTargets(team: Team): Vector2[] | null {
-    return this.state == "restart"
-      ? this.restartController.positioningTargets(team)
-      : null;
-  }
-
-  public restartAttackTarget(team: Team): Vector2 | null {
-    return this.state == "restart"
-      ? this.restartController.attackTarget(team)
-      : null;
+  public teamAiContext(side: TeamSide): TeamAiUpdateContext {
+    if (this.state != "restart") return { restart: null };
+    const sequence = this.restartController.sequence();
+    const state = this.restartController.teamAiState(side);
+    if (sequence == null || state == null) return { restart: null };
+    return {
+      restart: {
+        sequence: sequence,
+        state: state,
+        canMove: this.restartController.canTeamMove(side),
+        taker: this.restartController.taker(side),
+        positioningTargets: this.restartController.positioningTargets(side),
+        attackTarget: this.restartController.attackTarget(side),
+      },
+    };
   }
 
   public restartType(): RestartType | null {
@@ -166,16 +168,9 @@ class MatchFlow {
     const scoredBy = this.goalDetector.update();
     if (scoredBy == null) return false;
 
-    let scoringTeam = null;
-    let concedingTeam = null;
-    for (let i = 0; i < context.teams.length; i++) {
-      if (context.teams[i].side == scoredBy) {
-        scoringTeam = context.teams[i];
-      } else {
-        concedingTeam = context.teams[i];
-      }
-    }
-    if (scoringTeam == null || concedingTeam == null) return false;
+    const scoringTeam = context.teams[scoredBy];
+    const concedingSide = scoredBy == "home" ? "away" : "home";
+    const concedingTeam = context.teams[concedingSide];
 
     scoringTeam.score++;
     return this.startRestart(

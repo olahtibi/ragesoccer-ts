@@ -8,9 +8,10 @@ import type {
   RestartStrategy,
   RestartType,
   SimulationMode,
+  TeamAiState,
+  TeamSide,
 } from "../../types";
 import type { Player } from "../../world/player";
-import type { Team } from "../../world/team";
 import type { PositioningController } from "./positioningController";
 import type { RestartRegistry } from "./restartRegistry";
 
@@ -21,6 +22,7 @@ export interface RestartBeginOptions {
 }
 
 interface RestartSession {
+  sequence: number;
   request: RestartRequest;
   strategy: RestartStrategy;
   opponentReadyElapsed: number;
@@ -61,13 +63,12 @@ class RestartController {
     context.humanController.clearInput();
     context.ball.heldBy = null;
     this.session = {
+      sequence: this.restartSequence,
       request: request,
       strategy: strategy,
       opponentReadyElapsed: 0,
       phase: "positioning",
     };
-    this.assignTeamAiStates(context);
-
     const scene = strategy.createScene(context, request);
     this.session.taker = scene.readyPlayer || null;
     this.session.positioningTeams = scene.sceneTeams;
@@ -122,16 +123,6 @@ class RestartController {
         ? this.session.taker
         : null;
     context.humanController.selectPlayer(humanTaker);
-  }
-
-  private assignTeamAiStates(context: GameContext): void {
-    if (this.session == null) return;
-    for (let i = 0; i < context.teamAis.length; i++) {
-      const teamAi = context.teamAis[i];
-      teamAi.setRestartState(
-        this.session.strategy.teamAiState(teamAi.team, this.session.request),
-      );
-    }
   }
 
   private resume(context: GameContext, direction: Vector2 | null): boolean {
@@ -196,33 +187,42 @@ class RestartController {
     );
   }
 
-  public canTeamMove(team: Team): boolean {
+  public sequence(): number | null {
+    return this.session != null ? this.session.sequence : null;
+  }
+
+  public teamAiState(side: TeamSide): TeamAiState | null {
+    if (this.session == null) return null;
+    return this.session.strategy.teamAiState(side, this.session.request);
+  }
+
+  public canTeamMove(side: TeamSide): boolean {
     if (this.session == null || this.session.phase != "inProgress")
       return false;
-    return this.session.strategy.canTeamMove(team, this.session.request);
+    return this.session.strategy.canTeamMove(side, this.session.request);
   }
 
-  public attackTarget(team: Team): Vector2 | null {
+  public attackTarget(side: TeamSide): Vector2 | null {
     if (this.session == null || this.session.strategy.attackTarget == null)
       return null;
-    return this.session.strategy.attackTarget(team, this.session.request);
+    return this.session.strategy.attackTarget(side, this.session.request);
   }
 
-  public taker(team: Team): Player | null {
+  public taker(side: TeamSide): Player | null {
     if (
       this.session == null ||
       this.session.taker == null ||
-      this.session.taker.teamSide != team.side
+      this.session.taker.teamSide != side
     )
       return null;
     return this.session.taker;
   }
 
-  public positioningTargets(team: Team): Vector2[] | null {
+  public positioningTargets(side: TeamSide): Vector2[] | null {
     if (this.session == null || this.session.positioningTeams == null)
       return null;
     for (let i = 0; i < this.session.positioningTeams.length; i++) {
-      if (this.session.positioningTeams[i].side == team.side) {
+      if (this.session.positioningTeams[i].side == side) {
         return this.session.positioningTeams[i].positions;
       }
     }

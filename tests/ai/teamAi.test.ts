@@ -1,7 +1,7 @@
 import { assertEqual, assertNear, assertTrue, test } from "../testlib";
 import { makeFixture } from "../helpers";
 import { Formation } from "../../src/ai/formation";
-import type { TeamAi, TeamAiUpdateContext } from "../../src/ai/teamAi";
+import type { TeamAi, TeamAiRestartContext } from "../../src/ai/teamAi";
 import { Vector2 as Vector2d } from "../../src/math/vector";
 import type { Vector2 } from "../../src/math/vector";
 
@@ -9,16 +9,21 @@ function update(
   ai: TeamAi,
   restartActive: boolean,
   canMove: boolean,
-  overrides: Partial<TeamAiUpdateContext> = {},
+  overrides: Partial<TeamAiRestartContext> & { deltaSeconds?: number } = {},
 ): void {
-  ai.update({
-    deltaSeconds: 1 / 60,
-    restartActive,
-    canMove,
-    restartTaker: null,
-    positioningTargets: null,
-    attackTarget: null,
-    ...overrides,
+  const { deltaSeconds = 1 / 60, ...restartOverrides } = overrides;
+  ai.update(deltaSeconds, {
+    restart: restartActive
+      ? {
+          sequence: 1,
+          state: ai.state,
+          canMove: canMove,
+          taker: null,
+          positioningTargets: null,
+          attackTarget: null,
+          ...restartOverrides,
+        }
+      : null,
   });
 }
 
@@ -67,6 +72,27 @@ test("TeamAi preserves its assigned state while a restart is active", function (
   update(fixture.homeTeamAi, true, true);
 
   assertEqual(fixture.homeTeamAi.state, "kickoffUs");
+});
+
+test("TeamAi initializes restart state once for each restart sequence", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 2 });
+  var ai = fixture.awayTeamAi;
+  var restart = {
+    sequence: 20,
+    state: "cornerUs" as const,
+    canMove: true,
+    taker: fixture.awayPlayers[0],
+    positioningTargets: ai.formation.positions("cornerUs", "away", 2),
+    attackTarget: null,
+  };
+
+  ai.update(1 / 60, { restart: restart });
+  ai.ballAttacker = fixture.awayPlayers[1];
+  ai.update(1 / 60, { restart: restart });
+  assertTrue(ai.ballAttacker === fixture.awayPlayers[1]);
+
+  ai.update(1 / 60, { restart: { ...restart, sequence: 21 } });
+  assertEqual(ai.ballAttacker, null);
 });
 
 test("TeamAi returns to attack and defense after a restart", function () {
@@ -222,21 +248,16 @@ test("TeamAi retains layered support targets after the corner restart clears", f
       fixture.config.pitch.fieldBottom,
     ),
   });
-  update(fixture.awayTeamAi, true, true, {
-    restartTaker: fixture.restartController.taker(fixture.awayTeam),
-    positioningTargets: fixture.restartController.positioningTargets(
-      fixture.awayTeam,
-    ),
-    attackTarget: fixture.restartController.attackTarget(fixture.awayTeam),
-  });
-  var taker = fixture.restartController.taker(fixture.awayTeam);
+  fixture.awayTeamAi.update(
+    1 / 60,
+    fixture.game.matchFlow.teamAiContext("away"),
+  );
+  var taker = fixture.restartController.taker("away");
   assertTrue(taker !== null);
   var takerIndex = fixture.awayPlayers.indexOf(taker);
   var groups = new Formation(fixture.config).cornerAssignments(11, takerIndex);
   var shortIndex = groups.indexOf("short");
-  var positioningTargets = fixture.restartController.positioningTargets(
-    fixture.awayTeam,
-  );
+  var positioningTargets = fixture.restartController.positioningTargets("away");
   assertTrue(positioningTargets !== null);
   var expectedTarget = positioningTargets[shortIndex];
 
@@ -407,13 +428,15 @@ test("TeamAi uses exact targets and clears smoothing during restart setup", func
   update(ai, false, true, { deltaSeconds: 0.1 });
   var restartTargets = ai.formation.positions("kickoffUs", "away", 5);
 
-  ai.update({
-    restartActive: true,
-    canMove: true,
-    restartTaker: fixture.awayPlayers[0],
-    positioningTargets: restartTargets,
-    deltaSeconds: 0.1,
-    attackTarget: null,
+  ai.update(0.1, {
+    restart: {
+      sequence: 1,
+      state: "kickoffUs",
+      canMove: true,
+      taker: fixture.awayPlayers[0],
+      positioningTargets: restartTargets,
+      attackTarget: null,
+    },
   });
 
   assertTrue(ai.debugSnapshot()[1].target === restartTargets[1]);

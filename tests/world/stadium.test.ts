@@ -47,7 +47,6 @@ test("Stadium marks the team-owned human player", function () {
 
   assertEqual(strokes, 1);
   assertTrue(
-    fixture.homeTeam.humanPlayer ===
-      fixture.restartController.taker(fixture.homeTeam),
+    fixture.homeTeam.humanPlayer === fixture.restartController.taker("home"),
   );
 });

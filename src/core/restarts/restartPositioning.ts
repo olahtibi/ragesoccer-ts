@@ -3,6 +3,7 @@ import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d } from "../../math/vector";
 import type { Vector2 } from "../../math/vector";
 import type { Configuration } from "../configuration";
+import { TEAM_SIDES } from "../../types";
 import type {
   GameContext,
   RestartRequest,
@@ -12,7 +13,6 @@ import type {
   TeamSide,
 } from "../../types";
 import type { Player } from "../../world/player";
-import type { Team } from "../../world/team";
 export { RestartPositioning };
 
 interface RestartPositioningApi {
@@ -50,7 +50,7 @@ interface RestartPositioningApi {
   clampToPlayingField(config: Configuration, position: Vector2): Vector2;
   stateFor(
     type: Exclude<RestartType, "kickoff">,
-    team: Team,
+    side: TeamSide,
     request: RestartRequest,
   ): TeamAiState;
 }
@@ -69,8 +69,8 @@ const RestartPositioning: RestartPositioningApi = {
     var formation = new Formation(config);
     var sceneTeams: RestartScene["sceneTeams"] = [];
     var readyPlayer: Player | null = null;
-    for (var i = 0; i < context.teams.length; i++) {
-      var team = context.teams[i];
+    for (var i = 0; i < TEAM_SIDES.length; i++) {
+      var team = context.teams[TEAM_SIDES[i]];
       var awarded = team.side == request.awardedTo;
       var positions =
         awarded && awardedPositions != null
@@ -210,8 +210,8 @@ const RestartPositioning: RestartPositioningApi = {
     );
   },
 
-  stateFor: function (type, team, request) {
+  stateFor: function (type, side, request) {
     return (type +
-      (team.side == request.awardedTo ? "Us" : "Opponent")) as TeamAiState;
+      (side == request.awardedTo ? "Us" : "Opponent")) as TeamAiState;
   },
 };

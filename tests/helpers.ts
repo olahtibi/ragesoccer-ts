@@ -4,6 +4,7 @@ import { Vector2 } from "../src/math/vector";
 import { Configuration, type GameAssets } from "../src/core/configuration";
 import { createGame, type Game } from "../src/core/game";
 import type { DebugInputEvent } from "../src/types";
+import { TEAM_SIDES } from "../src/types";
 
 export interface FixtureOptions {
   homeTeamSize?: number;
@@ -52,8 +53,8 @@ export function makeFixture(options: FixtureOptions = {}) {
   const config = makeConfig(options);
   const game = createGame(config);
   const ball = game.stadium.ball;
-  const homeTeam = game.teams[0];
-  const awayTeam = game.teams[1];
+  const homeTeam = game.sides.home.team;
+  const awayTeam = game.sides.away.team;
   const restartController = game.matchFlow.restartController;
 
   return {
@@ -69,9 +70,8 @@ export function makeFixture(options: FixtureOptions = {}) {
     boundaryDetector: game.matchFlow.boundaryDetector,
     stadium: game.stadium,
     physics: game.physics,
-    teamAis: game.teamAis,
-    homeTeamAi: game.teamAis[0],
-    awayTeamAi: game.teamAis[1],
+    homeTeamAi: game.sides.home.ai,
+    awayTeamAi: game.sides.away.ai,
     restartController,
     positioningController: restartController.positioningController,
     game,
@@ -127,17 +127,11 @@ export function advancePhysics(
 }
 
 export function updateTeamAis(fixture: TestFixture): void {
-  for (const teamAi of fixture.game.teamAis) {
-    teamAi.update({
-      deltaSeconds: fixture.physics.lastDt,
-      restartActive: fixture.game.matchFlow.isRestartActive(),
-      canMove: fixture.game.matchFlow.canTeamMove(teamAi.team),
-      restartTaker: fixture.game.matchFlow.restartTaker(teamAi.team),
-      positioningTargets: fixture.game.matchFlow.restartPositioningTargets(
-        teamAi.team,
-      ),
-      attackTarget: fixture.game.matchFlow.restartAttackTarget(teamAi.team),
-    });
+  for (const side of TEAM_SIDES) {
+    fixture.game.sides[side].ai.update(
+      fixture.physics.lastDt,
+      fixture.game.matchFlow.teamAiContext(side),
+    );
   }
 }
 

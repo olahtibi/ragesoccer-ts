@@ -41,8 +41,14 @@ test("MatchFlow awards a touchline exit to the team that did not touch last", fu
 
   assertEqual(fixture.restartController.type(), "throwIn");
   assertEqual(fixture.restartController.phase(), "positioning");
-  assertEqual(fixture.homeTeamAi.state, "throwInOpponent");
-  assertEqual(fixture.awayTeamAi.state, "throwInUs");
+  assertEqual(
+    fixture.game.matchFlow.teamAiContext("home").restart?.state,
+    "throwInOpponent",
+  );
+  assertEqual(
+    fixture.game.matchFlow.teamAiContext("away").restart?.state,
+    "throwInUs",
+  );
 });
 
 test("MatchFlow chooses top end-line goal kicks and corners from last touch", function () {
@@ -55,7 +61,10 @@ test("MatchFlow chooses top end-line goal kicks and corners from last touch", fu
   completeOutOfPlayDelay(goalKick);
 
   assertEqual(goalKick.restartController.type(), "goalKick");
-  assertEqual(goalKick.awayTeamAi.state, "goalKickUs");
+  assertEqual(
+    goalKick.game.matchFlow.teamAiContext("away").restart?.state,
+    "goalKickUs",
+  );
 
   var corner = makeFixture();
   corner.game.matchFlow.state = "normalPlay";
@@ -67,7 +76,10 @@ test("MatchFlow chooses top end-line goal kicks and corners from last touch", fu
   completeOutOfPlayDelay(corner);
 
   assertEqual(corner.restartController.type(), "corner");
-  assertEqual(corner.homeTeamAi.state, "cornerUs");
+  assertEqual(
+    corner.game.matchFlow.teamAiContext("home").restart?.state,
+    "cornerUs",
+  );
 });
 
 test("MatchFlow chooses bottom end-line goal kicks and corners from last touch", function () {
@@ -80,7 +92,10 @@ test("MatchFlow chooses bottom end-line goal kicks and corners from last touch",
   completeOutOfPlayDelay(goalKick);
 
   assertEqual(goalKick.restartController.type(), "goalKick");
-  assertEqual(goalKick.homeTeamAi.state, "goalKickUs");
+  assertEqual(
+    goalKick.game.matchFlow.teamAiContext("home").restart?.state,
+    "goalKickUs",
+  );
 
   var corner = makeFixture();
   corner.game.matchFlow.state = "normalPlay";
@@ -92,7 +107,10 @@ test("MatchFlow chooses bottom end-line goal kicks and corners from last touch",
   completeOutOfPlayDelay(corner);
 
   assertEqual(corner.restartController.type(), "corner");
-  assertEqual(corner.awayTeamAi.state, "cornerUs");
+  assertEqual(
+    corner.game.matchFlow.teamAiContext("away").restart?.state,
+    "cornerUs",
+  );
 });
 
 test("MatchFlow restores and stops an exit without last-touch ownership", function () {

@@ -7,6 +7,7 @@ import {
   type ReplayPayload,
 } from "../helpers";
 import { DebugTool } from "../../src/core/debugTool";
+import { TEAM_SIDES } from "../../src/types";
 import { Vector2 as Vector2d } from "../../src/math/vector";
 import { vi } from "vitest";
 
@@ -83,15 +84,8 @@ test("DebugTool snapshot includes ball, players, and AI commands states and targ
   setup.game.matchFlow.state = "normalPlay";
   setup.fixture.ball.position.x = setup.fixture.awayPlayers[0].position.x + 20;
   setup.fixture.ball.position.y = setup.fixture.awayPlayers[0].position.y;
-  for (const teamAi of setup.game.teamAis) {
-    teamAi.update({
-      deltaSeconds: 0,
-      restartActive: false,
-      canMove: true,
-      restartTaker: null,
-      positioningTargets: null,
-      attackTarget: null,
-    });
+  for (const side of TEAM_SIDES) {
+    setup.game.sides[side].ai.update(0, { restart: null });
   }
 
   setup.game.debugTool.record(setup.game);
@@ -128,14 +122,7 @@ test("DebugTool draws public AI targets from current player positions", function
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 2 });
   var tool = new DebugTool(fixture.config);
   fixture.awayTeamAi.setRestartState("attack");
-  fixture.awayTeamAi.update({
-    deltaSeconds: 0.1,
-    restartActive: false,
-    canMove: true,
-    restartTaker: null,
-    positioningTargets: null,
-    attackTarget: null,
-  });
+  fixture.awayTeamAi.update(0.1, { restart: null });
   var calls: string[] = [];
   var ctx = canvasContext({
     beginPath: function () {
@@ -152,7 +139,7 @@ test("DebugTool draws public AI targets from current player positions", function
     },
   });
 
-  tool.draw(ctx, [fixture.awayTeamAi]);
+  tool.draw(ctx, fixture.game.sides);
 
   assertTrue(calls.includes("begin"));
   assertTrue(calls.some((call) => call.startsWith("move:")));

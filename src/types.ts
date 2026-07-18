@@ -1,5 +1,4 @@
 import type { Vector2 } from "./math/vector";
-import type { TeamAi } from "./ai/teamAi";
 import type { Camera } from "./core/camera";
 import type { Configuration } from "./core/configuration";
 import type { HumanController } from "./input/humanController";
@@ -9,6 +8,8 @@ import type { Stadium } from "./world/stadium";
 import type { Team } from "./world/team";
 
 export type TeamSide = "home" | "away";
+export const TEAM_SIDES = ["home", "away"] as const;
+export type TeamSideMap<T> = Record<TeamSide, T>;
 export type RestartType = "kickoff" | "throwIn" | "corner" | "goalKick";
 export type MatchState = "normalPlay" | "outOfPlay" | "restart" | "paused";
 export type RestartPhase =
@@ -55,8 +56,7 @@ export interface GameContext {
   config: Configuration;
   stadium: Stadium;
   ball: Ball;
-  teams: Team[];
-  teamAis: TeamAi[];
+  teams: TeamSideMap<Team>;
   humanController: HumanController;
   camera: Camera;
 }
@@ -81,8 +81,8 @@ export interface RestartStrategy {
   allowEarlyResume?: boolean;
   opponentAutoResumeAfterPositioning?: boolean;
   createScene(context: GameContext, request: RestartRequest): RestartScene;
-  teamAiState(team: Team, request: RestartRequest): TeamAiState;
-  canTeamMove(team: Team, request: RestartRequest): boolean;
+  teamAiState(side: TeamSide, request: RestartRequest): TeamAiState;
+  canTeamMove(side: TeamSide, request: RestartRequest): boolean;
   enforceRules(context: GameContext, request: RestartRequest): void;
   isComplete(context: GameContext, request: RestartRequest): boolean;
   onPositioned?(context: GameContext, request: RestartRequest): void;
@@ -91,5 +91,5 @@ export interface RestartStrategy {
     request: RestartRequest,
     direction: Vector2 | null,
   ): boolean;
-  attackTarget?(team: Team, request: RestartRequest): Vector2 | null;
+  attackTarget?(side: TeamSide, request: RestartRequest): Vector2 | null;
 }

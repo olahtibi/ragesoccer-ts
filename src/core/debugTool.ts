@@ -1,5 +1,5 @@
-import type { TeamAi } from "../ai/teamAi";
 import type { Vector2 } from "../math/vector";
+import { TEAM_SIDES } from "../types";
 import type {
   DebugInputEvent,
   MatchState,
@@ -165,12 +165,12 @@ class DebugTool {
         phase: game.matchFlow.restartPhase(),
       },
       scores: {
-        home: game.teams[0].score,
-        away: game.teams[1].score,
+        home: game.sides.home.team.score,
+        away: game.sides.away.team.score,
       },
       ball: this.ballSnapshot(game.stadium.ball),
       players: this.playersSnapshot(game.stadium),
-      ai: this.aiSnapshot(game.teamAis),
+      ai: this.aiSnapshot(game.sides),
     };
   }
 
@@ -203,10 +203,10 @@ class DebugTool {
     return result;
   }
 
-  private aiSnapshot(teamAis: TeamAi[]): AiDebugSnapshot[] {
+  private aiSnapshot(sides: Game["sides"]): AiDebugSnapshot[] {
     const result: AiDebugSnapshot[] = [];
-    for (let t = 0; t < teamAis.length; t++) {
-      const teamAi = teamAis[t];
+    for (let t = 0; t < TEAM_SIDES.length; t++) {
+      const teamAi = sides[TEAM_SIDES[t]].ai;
       const team = teamAi.team;
       const snapshots = teamAi.debugSnapshot();
       for (let i = 0; i < snapshots.length; i++) {
@@ -224,9 +224,9 @@ class DebugTool {
     return result;
   }
 
-  public draw(ctx: CanvasRenderingContext2D, teamAis: TeamAi[]): void {
-    for (let t = 0; t < teamAis.length; t++) {
-      const teamAi = teamAis[t];
+  public draw(ctx: CanvasRenderingContext2D, sides: Game["sides"]): void {
+    for (let t = 0; t < TEAM_SIDES.length; t++) {
+      const teamAi = sides[TEAM_SIDES[t]].ai;
       const snapshots = teamAi.debugSnapshot();
       for (let i = 0; i < snapshots.length; i++) {
         const target = snapshots[i].target;

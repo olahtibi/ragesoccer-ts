@@ -6,8 +6,8 @@ import type {
   RestartScene,
   RestartStrategy,
   TeamAiState,
+  TeamSide,
 } from "../../types";
-import type { Team } from "../../world/team";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
 export { GoalKickRestart };
@@ -55,25 +55,20 @@ class GoalKickRestart implements RestartStrategy {
     context: GameContext,
     request: RestartRequest,
   ): number {
-    for (let i = 0; i < context.teams.length; i++) {
-      const team = context.teams[i];
-      if (team.side != request.awardedTo) continue;
-      const roles = new Formation(this.config).rolesForSize(
-        team.players.length,
-      );
-      for (let j = 0; j < roles.length; j++) {
-        if (roles[j] == "goalie") return j;
-      }
+    const team = context.teams[request.awardedTo];
+    const roles = new Formation(this.config).rolesForSize(team.players.length);
+    for (let j = 0; j < roles.length; j++) {
+      if (roles[j] == "goalie") return j;
     }
     return 0;
   }
 
-  public teamAiState(team: Team, request: RestartRequest): TeamAiState {
-    return RestartPositioning.stateFor("goalKick", team, request);
+  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
+    return RestartPositioning.stateFor("goalKick", side, request);
   }
 
-  public canTeamMove(team: Team, request: RestartRequest): boolean {
-    return team.side == request.awardedTo;
+  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
+    return side == request.awardedTo;
   }
 
   public enforceRules(): void {}

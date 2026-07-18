@@ -77,7 +77,7 @@ class BrowserInput {
     )
       return;
     this.game.humanController.selectPlayer();
-    const canMove = this.game.matchFlow.canTeamMove(this.game.teams[0]);
+    const canMove = this.game.matchFlow.canTeamMove("home");
     this.game.humanController.update(canMove);
   }
 

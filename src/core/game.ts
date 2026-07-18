@@ -1,10 +1,12 @@
 import { TeamAi } from "../ai/teamAi";
 import type { Vector2 } from "../math/vector";
+import { TEAM_SIDES } from "../types";
 import type {
   GameContext,
   RestartRequest,
   RestartType,
   TeamSide,
+  TeamSideMap,
 } from "../types";
 import { HumanController } from "../input/humanController";
 import { Ball } from "../world/ball";
@@ -26,11 +28,15 @@ import { RestartRegistry } from "./restarts/restartRegistry";
 import { ThrowInRestart } from "./restarts/throwInRestart";
 export { Game, createContext, createGame };
 
+export interface TeamRuntime {
+  readonly team: Team;
+  readonly ai: TeamAi;
+}
+
 interface GameOptions {
   config: Configuration;
   stadium: Stadium;
-  teams: Team[];
-  teamAis: TeamAi[];
+  sides: TeamSideMap<TeamRuntime>;
   camera: Camera;
   physics: Physics;
   humanController: HumanController;
@@ -40,11 +46,22 @@ interface GameOptions {
 
 type RestartDetails = Omit<Partial<RestartRequest>, "type" | "awardedTo">;
 
+function createTeamRuntime(
+  config: Configuration,
+  team: Team,
+  opponentTeam: Team,
+  ball: Ball,
+): TeamRuntime {
+  return {
+    team: team,
+    ai: new TeamAi(config, team, opponentTeam, ball),
+  };
+}
+
 class Game {
   public readonly config: Configuration;
   public readonly stadium: Stadium;
-  public readonly teams: Team[];
-  public readonly teamAis: TeamAi[];
+  public readonly sides: TeamSideMap<TeamRuntime>;
   public readonly camera: Camera;
   public readonly physics: Physics;
   public readonly humanController: HumanController;
@@ -54,8 +71,7 @@ class Game {
   public constructor(options: GameOptions) {
     this.config = options.config;
     this.stadium = options.stadium;
-    this.teams = options.teams;
-    this.teamAis = options.teamAis;
+    this.sides = options.sides;
     this.camera = options.camera;
     this.physics = options.physics;
     this.humanController = options.humanController;
@@ -68,8 +84,10 @@ class Game {
       config: this.config,
       stadium: this.stadium,
       ball: this.stadium.ball,
-      teams: this.teams,
-      teamAis: this.teamAis,
+      teams: {
+        home: this.sides.home.team,
+        away: this.sides.away.team,
+      },
       humanController: this.humanController,
       camera: this.camera,
     };
@@ -114,7 +132,7 @@ class Game {
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
     } else {
       this.updateAi();
-      const canMove = this.matchFlow.canTeamMove(this.teams[0]);
+      const canMove = this.matchFlow.canTeamMove("home");
       this.humanController.update(canMove);
       this.physics.update();
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
@@ -126,7 +144,7 @@ class Game {
   public render(ctx: CanvasRenderingContext2D): void {
     this.camera.windowToViewport(ctx);
     this.stadium.draw(ctx);
-    if (this.isPaused()) this.debugTool.draw(ctx, this.teamAis);
+    if (this.isPaused()) this.debugTool.draw(ctx, this.sides);
     this.camera.renderOverlay(ctx, this.physics.displayFps);
   }
 
@@ -134,18 +152,13 @@ class Game {
 
   private updateAi(): void {
     this.humanController.selectPlayer();
-    for (let i = 0; i < this.teamAis.length; i++) {
-      const teamAi = this.teamAis[i];
-      teamAi.update({
-        deltaSeconds: this.physics.lastDt,
-        restartActive: this.matchFlow.isRestartActive(),
-        canMove: this.matchFlow.canTeamMove(teamAi.team),
-        restartTaker: this.matchFlow.restartTaker(teamAi.team),
-        positioningTargets: this.matchFlow.restartPositioningTargets(
-          teamAi.team,
-        ),
-        attackTarget: this.matchFlow.restartAttackTarget(teamAi.team),
-      });
+    for (let i = 0; i < TEAM_SIDES.length; i++) {
+      const side = TEAM_SIDES[i];
+      const runtime = this.sides[side];
+      runtime.ai.update(
+        this.physics.lastDt,
+        this.matchFlow.teamAiContext(side),
+      );
     }
   }
 }
@@ -159,12 +172,11 @@ function createGame(config: Configuration): Game {
   );
   const homeTeam = new Team(config, "home");
   const awayTeam = new Team(config, "away");
-  const teams = [homeTeam, awayTeam];
   const stadium = new Stadium(config.assets.pitch, ball, homeTeam, awayTeam);
-  const teamAis = [
-    new TeamAi(config, homeTeam, awayTeam, ball),
-    new TeamAi(config, awayTeam, homeTeam, ball),
-  ];
+  const sides: TeamSideMap<TeamRuntime> = {
+    home: createTeamRuntime(config, homeTeam, awayTeam, ball),
+    away: createTeamRuntime(config, awayTeam, homeTeam, ball),
+  };
   const camera = new Camera(config, stadium);
   const physics = new Physics(config, stadium);
   const goalDetector = new GoalDetector(config, ball);
@@ -188,8 +200,7 @@ function createGame(config: Configuration): Game {
   const game = new Game({
     config: config,
     stadium: stadium,
-    teams: teams,
-    teamAis: teamAis,
+    sides: sides,
     camera: camera,
     physics: physics,
     humanController: humanController,

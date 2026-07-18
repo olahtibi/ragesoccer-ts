@@ -63,7 +63,7 @@ test("Initial kickoff positions immediately and waits for input", function () {
   assertEqual(fixture.positioningController.isActive(), false);
   assertTrue(
     fixture.game.humanController.player() ===
-      fixture.restartController.taker(fixture.homeTeam),
+      fixture.restartController.taker("home"),
   );
   assertEqual(fixture.game.matchFlow.simulationMode(), "none");
 });
@@ -353,8 +353,8 @@ test("Kickoff assigns relative states and movement permission", function () {
 
   assertEqual(fixture.homeTeamAi.state, "kickoffOpponent");
   assertEqual(fixture.awayTeamAi.state, "kickoffUs");
-  assertEqual(fixture.restartController.canTeamMove(fixture.homeTeam), false);
-  assertEqual(fixture.restartController.canTeamMove(fixture.awayTeam), true);
+  assertEqual(fixture.restartController.canTeamMove("home"), false);
+  assertEqual(fixture.restartController.canTeamMove("away"), true);
 });
 
 test("Throw-in uses fresh directional input to launch a lofted inward throw", function () {
@@ -445,7 +445,7 @@ test("Corner restart gives the awarded AI team a central crossing target", funct
     ),
   });
 
-  var target = fixture.restartController.attackTarget(fixture.awayTeam);
+  var target = fixture.restartController.attackTarget("away");
   assertTrue(target !== null);
 
   assertEqual(target.x, fixture.config.pitch.initialBallPosition.x);
@@ -454,7 +454,7 @@ test("Corner restart gives the awarded AI team a central crossing target", funct
     fixture.config.pitch.fieldBottom -
       fixture.config.restarts.cornerCrossDistance,
   );
-  assertEqual(fixture.restartController.attackTarget(fixture.homeTeam), null);
+  assertEqual(fixture.restartController.attackTarget("home"), null);
 });
 
 test("Corner restart never selects the goalkeeper or cover defender as taker", function () {

@@ -1,5 +1,10 @@
 import { assertEqual, assertTrue, test } from "../testlib";
-import { canvasContext, completePositioning, makeFixture } from "../helpers";
+import {
+  canvasContext,
+  completePositioning,
+  makeFixture,
+  updateTeamAis,
+} from "../helpers";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Game } from "../../src/core/game";
@@ -8,7 +13,14 @@ test("Game composes explicit controllers without putting them on Stadium", funct
   var fixture = makeFixture();
   var context = fixture.game.context();
 
-  assertEqual(fixture.game.teamAis.length, 2);
+  assertTrue(fixture.game.sides.home.ai.team === fixture.game.sides.home.team);
+  assertTrue(fixture.game.sides.away.ai.team === fixture.game.sides.away.team);
+  assertTrue(
+    fixture.game.sides.home.ai.opponentTeam === fixture.game.sides.away.team,
+  );
+  assertTrue(
+    fixture.game.sides.away.ai.opponentTeam === fixture.game.sides.home.team,
+  );
   assertTrue(fixture.game.humanController !== null);
   assertEqual("restartController" in fixture.game, false);
   assertTrue(fixture.game.matchFlow.restartController !== null);
@@ -31,10 +43,10 @@ test("Full simulation updates AI human input physics restart and score in order"
   var fixture = makeFixture();
   var order: string[] = [];
   fixture.game.matchFlow.state = "normalPlay";
-  fixture.game.teamAis[0].update = function () {
+  fixture.game.sides.home.ai.update = function () {
     order.push("ai");
   };
-  fixture.game.teamAis[1].update = function () {};
+  fixture.game.sides.away.ai.update = function () {};
   fixture.game.humanController.update = function () {
     order.push("human");
   };
@@ -126,8 +138,8 @@ test("Game renders AI debug through DebugTool only while paused", function () {
   fixture.game.camera.windowToViewport = function () {};
   fixture.game.camera.renderOverlay = function () {};
   fixture.game.stadium.draw = function () {};
-  fixture.game.debugTool.draw = function (actualCtx, teamAis) {
-    if (actualCtx === ctx && teamAis === fixture.game.teamAis) draws++;
+  fixture.game.debugTool.draw = function (actualCtx, sides) {
+    if (actualCtx === ctx && sides === fixture.game.sides) draws++;
   };
 
   fixture.game.render(ctx);
@@ -146,6 +158,7 @@ test("A home goal updates the score and starts an away kickoff once", function (
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
   fixture.game.matchFlow.detectGoal(fixture.game.context());
+  updateTeamAis(fixture);
 
   assertEqual(fixture.homeTeam.score, 1);
   assertEqual(fixture.awayTeam.score, 0);
@@ -163,6 +176,7 @@ test("An away goal updates the score and starts a home kickoff", function () {
   fixture.ball.position.y = 758;
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
+  updateTeamAis(fixture);
 
   assertEqual(fixture.homeTeam.score, 0);
   assertEqual(fixture.awayTeam.score, 1);

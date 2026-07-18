@@ -11,10 +11,14 @@ import { IndividualAi, type IndividualAiDebugSnapshot } from "./individualAi";
 export { TeamAi };
 
 export interface TeamAiUpdateContext {
-  deltaSeconds: number;
-  restartActive: boolean;
+  restart: TeamAiRestartContext | null;
+}
+
+export interface TeamAiRestartContext {
+  sequence: number;
+  state: TeamAiState;
   canMove: boolean;
-  restartTaker: Player | null;
+  taker: Player | null;
   positioningTargets: Vector2[] | null;
   attackTarget: Vector2 | null;
 }
@@ -49,6 +53,7 @@ class TeamAi {
   public ballAttacker: Player | null;
   public cornerTakerIndex: number;
   public cornerPositioningTargets: Vector2[] | null;
+  private lastRestartSequence: number | null;
   private readonly individualAis: IndividualAi[];
   public readonly movementProfiles: MovementProfile[];
 
@@ -70,6 +75,7 @@ class TeamAi {
     this.ballAttacker = null;
     this.cornerTakerIndex = -1;
     this.cornerPositioningTargets = null;
+    this.lastRestartSequence = null;
     this.individualAis = [];
     this.movementProfiles = this.createMovementProfiles();
 
@@ -81,16 +87,23 @@ class TeamAi {
     }
   }
 
-  public update(context: TeamAiUpdateContext): void {
+  public update(deltaSeconds: number, context: TeamAiUpdateContext): void {
     if (!this.config.ai.enabled) {
       return;
     }
 
-    const restartActive = context.restartActive == true;
+    const restartActive = context.restart != null;
+    if (
+      context.restart != null &&
+      context.restart.sequence != this.lastRestartSequence
+    ) {
+      this.setRestartState(context.restart.state);
+      this.lastRestartSequence = context.restart.sequence;
+    }
     this.state = this.nextState(restartActive);
     this.updateCornerContext(context);
     let targets =
-      context.positioningTargets ||
+      (context.restart != null ? context.restart.positioningTargets : null) ||
       (this.state == "cornerUs" && this.cornerPositioningTargets != null
         ? this.cornerPositioningTargets
         : this.formation.positions(
@@ -101,7 +114,7 @@ class TeamAi {
     const openPlayFormation =
       !restartActive && (this.state == "attack" || this.state == "defense");
     targets = openPlayFormation
-      ? this.openPlayTargets(targets, context.deltaSeconds)
+      ? this.openPlayTargets(targets, deltaSeconds)
       : this.exactTargets(targets);
     const chasingCornerCross = this.state == "cornerUs" && !restartActive;
     const closest = chasingCornerCross
@@ -110,17 +123,19 @@ class TeamAi {
         : null
       : this.team.side == "home"
         ? this.team.humanPlayer
-        : context.restartTaker || this.selectedBallAttacker();
+        : (context.restart != null ? context.restart.taker : null) ||
+          this.selectedBallAttacker();
     const commandContext = {
       ball: this.ball,
       team: this.team,
       opponentTeam: this.opponentTeam,
-      attackTarget: context.attackTarget || null,
+      attackTarget:
+        context.restart != null ? context.restart.attackTarget : null,
     };
 
     for (let i = 0; i < this.individualAis.length; i++) {
       const ai = this.individualAis[i];
-      if (context.canMove == false) {
+      if (context.restart != null && context.restart.canMove == false) {
         ai.player.velocity.x = 0;
         ai.player.velocity.y = 0;
         ai.setCommand("inactive", null);
@@ -145,11 +160,11 @@ class TeamAi {
       this.cornerPositioningTargets = null;
       return;
     }
-    if (context.restartTaker != null) {
-      this.cornerTakerIndex = this.team.players.indexOf(context.restartTaker);
+    if (context.restart != null && context.restart.taker != null) {
+      this.cornerTakerIndex = this.team.players.indexOf(context.restart.taker);
     }
-    if (context.positioningTargets != null) {
-      this.cornerPositioningTargets = context.positioningTargets;
+    if (context.restart != null && context.restart.positioningTargets != null) {
+      this.cornerPositioningTargets = context.restart.positioningTargets;
     }
   }
 
