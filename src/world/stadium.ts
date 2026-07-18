@@ -26,11 +26,17 @@ class Stadium {
     this.players = homeTeam.players.concat(awayTeam.players);
   }
 
-  public draw(ctx: CanvasRenderingContext2D): void {
+  public draw(
+    ctx: CanvasRenderingContext2D,
+    showHumanPlayerMarker: boolean = true,
+  ): void {
     ctx.drawImage(this.imgStadium, 0, 0);
     if (this.ball.heldBy == null) this.ball.draw(ctx);
     for (let i = 0; i < this.players.length; i++) {
-      if (this.players[i] === this.homeTeam.humanPlayer) {
+      if (
+        showHumanPlayerMarker &&
+        this.players[i] === this.homeTeam.humanPlayer
+      ) {
         this.drawHumanPlayerMarker(ctx, this.players[i]);
       }
       this.players[i].draw(ctx);

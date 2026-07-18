@@ -130,7 +130,10 @@ class Game {
 
   public render(ctx: CanvasRenderingContext2D): void {
     this.camera.windowToViewport(ctx);
-    this.stadium.draw(ctx);
+    const showHumanPlayerMarker =
+      this.matchFlow.simulationMode() == "full" &&
+      this.matchFlow.canTeamMove("home");
+    this.stadium.draw(ctx, showHumanPlayerMarker);
     if (this.isPaused()) this.debugTool.draw(ctx, this.sides);
     this.camera.renderOverlay(ctx, this.physics.displayFps);
   }
