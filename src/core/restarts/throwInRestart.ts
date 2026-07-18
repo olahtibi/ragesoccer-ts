@@ -1,35 +1,27 @@
 import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d, Vector3 as Vector3d } from "../../math/vector";
 import type { Vector2 } from "../../math/vector";
-import type {
-  GameContext,
-  RestartRequest,
-  RestartScene,
-  RestartStrategy,
-  TeamAiState,
-  TeamSide,
-} from "../../types";
+import type { GameContext, RestartRequest, RestartScene } from "../../types";
 import type { Player } from "../../world/player";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
+import { assertRestartType, BaseRestartStrategy } from "./baseRestartStrategy";
 export { ThrowInRestart };
 
-class ThrowInRestart implements RestartStrategy {
-  public readonly config: Configuration;
+class ThrowInRestart extends BaseRestartStrategy {
   public readonly allowEarlyResume: boolean;
   public launched: boolean;
   public taker: Player | null;
 
   public constructor(config: Configuration) {
-    this.config = config;
+    super(config);
     this.allowEarlyResume = true;
     this.launched = false;
     this.taker = null;
   }
 
   private ballPosition(request: RestartRequest): Vector3d {
-    if (request.position == null || request.boundary == null)
-      throw new Error("Throw-in requires a boundary position");
+    assertRestartType(request, "throwIn");
     const clearance =
       this.config.ball.radius + this.config.restarts.placementClearance;
     const x =
@@ -49,6 +41,7 @@ class ThrowInRestart implements RestartStrategy {
     context: GameContext,
     request: RestartRequest,
   ): RestartScene {
+    assertRestartType(request, "throwIn");
     this.launched = false;
     const ballPosition = this.ballPosition(request);
     const offset =
@@ -82,17 +75,10 @@ class ThrowInRestart implements RestartStrategy {
   }
 
   public onPositioned(context: GameContext, request: RestartRequest): void {
+    assertRestartType(request, "throwIn");
     if (this.taker == null) return;
     this.taker.facingX = request.boundary == "left" ? 1 : -1;
     this.taker.facingY = 0;
-  }
-
-  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
-    return RestartPositioning.stateFor("throwIn", side, request);
-  }
-
-  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
-    return side == request.awardedTo;
   }
 
   public resume(
@@ -100,8 +86,7 @@ class ThrowInRestart implements RestartStrategy {
     request: RestartRequest,
     direction: Vector2 | null,
   ): boolean {
-    if (request.boundary == null)
-      throw new Error("Throw-in requires a boundary");
+    assertRestartType(request, "throwIn");
     const inwardX = request.boundary == "left" ? 1 : -1;
     const attackY = request.awardedTo == "home" ? -1 : 1;
     let dx: number;
@@ -110,8 +95,8 @@ class ThrowInRestart implements RestartStrategy {
       dx = inwardX;
       dy = attackY;
     } else {
-      dx = direction.x || 0;
-      dy = direction.y || 0;
+      dx = direction.x;
+      dy = direction.y;
       if (dx * inwardX < 0.35) dx = inwardX * 0.35;
     }
     const normalized = MathLib.normalizeVector(dx, dy, inwardX, attackY);
@@ -128,12 +113,10 @@ class ThrowInRestart implements RestartStrategy {
     return true;
   }
 
-  public enforceRules(): void {}
-
-  public isComplete(context: GameContext): boolean {
+  public override isComplete(context: GameContext): boolean {
     if (!this.launched) return false;
     const velocity = context.ball.velocity;
-    const minSpeed = this.config.physics.minVelocity || 0;
+    const minSpeed = this.config.physics.minVelocity;
     return (
       velocity.x * velocity.x + velocity.y * velocity.y > minSpeed * minSpeed
     );

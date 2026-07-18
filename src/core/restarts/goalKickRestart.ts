@@ -1,27 +1,21 @@
 import { Formation } from "../../ai/formation";
 import { Vector2 as Vector2d, Vector3 as Vector3d } from "../../math/vector";
-import type {
-  GameContext,
-  RestartRequest,
-  RestartScene,
-  RestartStrategy,
-  TeamAiState,
-  TeamSide,
-} from "../../types";
+import type { GameContext, RestartRequest, RestartScene } from "../../types";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
+import { assertRestartType, BaseRestartStrategy } from "./baseRestartStrategy";
 export { GoalKickRestart };
 
-class GoalKickRestart implements RestartStrategy {
-  public readonly config: Configuration;
+class GoalKickRestart extends BaseRestartStrategy {
   public readonly allowEarlyResume: boolean;
 
   public constructor(config: Configuration) {
-    this.config = config;
+    super(config);
     this.allowEarlyResume = true;
   }
 
   private ballPosition(request: RestartRequest): Vector3d {
+    assertRestartType(request, "goalKick");
     return new Vector3d(
       this.config.pitch.initialBallPosition.x,
       request.boundary == "top"
@@ -35,6 +29,7 @@ class GoalKickRestart implements RestartStrategy {
     context: GameContext,
     request: RestartRequest,
   ): RestartScene {
+    assertRestartType(request, "goalKick");
     const ballPosition = this.ballPosition(request);
     const offset = this.config.restarts.goalKickTakerDistance;
     const takerY =
@@ -61,23 +56,5 @@ class GoalKickRestart implements RestartStrategy {
       if (roles[j] == "goalie") return j;
     }
     return 0;
-  }
-
-  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
-    return RestartPositioning.stateFor("goalKick", side, request);
-  }
-
-  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
-    return side == request.awardedTo;
-  }
-
-  public enforceRules(): void {}
-
-  public isComplete(context: GameContext): boolean {
-    const velocity = context.ball.velocity;
-    const minSpeed = this.config.physics.minVelocity || 0;
-    return (
-      velocity.x * velocity.x + velocity.y * velocity.y > minSpeed * minSpeed
-    );
   }
 }

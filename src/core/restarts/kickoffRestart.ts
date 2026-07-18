@@ -6,21 +6,19 @@ import type {
   GameContext,
   RestartRequest,
   RestartScene,
-  RestartStrategy,
-  TeamAiState,
   TeamSide,
 } from "../../types";
 import type { Configuration } from "../configuration";
 import { RestartPositioning } from "./restartPositioning";
+import { assertRestartType, BaseRestartStrategy } from "./baseRestartStrategy";
 export { KickoffRestart };
 
-class KickoffRestart implements RestartStrategy {
-  public readonly config: Configuration;
+class KickoffRestart extends BaseRestartStrategy {
   public readonly formation: Formation;
   public readonly opponentAutoResumeAfterPositioning: boolean;
 
   public constructor(config: Configuration) {
-    this.config = config;
+    super(config);
     this.formation = new Formation(config);
     this.opponentAutoResumeAfterPositioning = true;
   }
@@ -29,7 +27,8 @@ class KickoffRestart implements RestartStrategy {
     context: GameContext,
     request: RestartRequest,
   ): RestartScene {
-    const sceneTeams: RestartScene["sceneTeams"] = [];
+    assertRestartType(request, "kickoff");
+    const placements: RestartScene["placements"] = { home: [], away: [] };
     let readyPlayer: RestartScene["readyPlayer"] = null;
     for (let i = 0; i < TEAM_SIDES.length; i++) {
       const team = context.teams[TEAM_SIDES[i]];
@@ -48,15 +47,14 @@ class KickoffRestart implements RestartStrategy {
         takerIndex,
       );
       positions = this.applyPositioningRules(positions, team.side, takerIndex);
-      sceneTeams.push({
-        side: team.side,
-        players: team.players,
-        positions: positions,
-      });
+      placements[team.side] = team.players.map((player, index) => ({
+        player,
+        target: positions[index],
+      }));
     }
     return {
       ballPosition: this.config.pitch.initialBallPosition,
-      sceneTeams: sceneTeams,
+      placements: placements,
       readyPlayer: readyPlayer,
     };
   }
@@ -99,15 +97,10 @@ class KickoffRestart implements RestartStrategy {
     return result;
   }
 
-  public teamAiState(side: TeamSide, request: RestartRequest): TeamAiState {
-    return side == request.awardedTo ? "kickoffUs" : "kickoffOpponent";
-  }
-
-  public canTeamMove(side: TeamSide, request: RestartRequest): boolean {
-    return side == request.awardedTo;
-  }
-
-  public enforceRules(context: GameContext, request: RestartRequest): void {
+  public override enforceRules(
+    context: GameContext,
+    request: RestartRequest,
+  ): void {
     if (request.awardedTo != "home") return;
     const player = context.humanController.player();
     if (player == null) return;
@@ -129,16 +122,7 @@ class KickoffRestart implements RestartStrategy {
       (player.velocity.x * dx) / (radiusX * radiusX) +
       (player.velocity.y * dy) / (radiusY * radiusY);
     if (outward > 0) {
-      player.velocity.x = 0;
-      player.velocity.y = 0;
+      player.stop();
     }
-  }
-
-  public isComplete(context: GameContext): boolean {
-    const velocity = context.ball.velocity;
-    const minSpeed = this.config.physics.minVelocity || 0;
-    return (
-      velocity.x * velocity.x + velocity.y * velocity.y > minSpeed * minSpeed
-    );
   }
 }

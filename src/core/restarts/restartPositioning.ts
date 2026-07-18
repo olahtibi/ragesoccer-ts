@@ -7,6 +7,7 @@ import { TEAM_SIDES } from "../../types";
 import type {
   GameContext,
   RestartRequest,
+  RestartPlacements,
   RestartScene,
   RestartType,
   TeamAiState,
@@ -67,7 +68,7 @@ const RestartPositioning: RestartPositioningApi = {
     awardedPositions = null,
   ) {
     var formation = new Formation(config);
-    var sceneTeams: RestartScene["sceneTeams"] = [];
+    var placements: RestartPlacements = { home: [], away: [] };
     var readyPlayer: Player | null = null;
     for (var i = 0; i < TEAM_SIDES.length; i++) {
       var team = context.teams[TEAM_SIDES[i]];
@@ -76,7 +77,7 @@ const RestartPositioning: RestartPositioningApi = {
         awarded && awardedPositions != null
           ? awardedPositions.slice()
           : formation.positions(
-              awarded ? awardedState || "attack" : "defense",
+              awarded ? (awardedState ?? "attack") : "defense",
               team.side,
               team.players.length,
             );
@@ -106,15 +107,13 @@ const RestartPositioning: RestartPositioningApi = {
           ballPosition,
         );
       }
-      sceneTeams.push({
-        side: team.side,
-        players: team.players,
-        positions: positions,
+      placements[team.side] = team.players.map(function (player, index) {
+        return { player: player, target: positions[index] };
       });
     }
     return {
       ballPosition: ballPosition,
-      sceneTeams: sceneTeams,
+      placements: placements,
       readyPlayer: readyPlayer,
     };
   },
@@ -128,8 +127,8 @@ const RestartPositioning: RestartPositioningApi = {
     protectedIndex,
   ) {
     var result: Vector2[] = [];
-    var variationX = config.restarts.positionVariationX || 0;
-    var variationY = config.restarts.positionVariationY || 0;
+    var variationX = config.restarts.positionVariationX;
+    var variationY = config.restarts.positionVariationY;
     for (var i = 0; i < positions.length; i++) {
       if (i == protectedIndex) {
         result.push(positions[i]);
@@ -147,7 +146,7 @@ const RestartPositioning: RestartPositioningApi = {
   },
 
   randomValue: function (seed, teamSide, playerIndex, salt) {
-    seed = seed || 0;
+    seed = seed ?? 0;
     var sideSeed = teamSide == "away" ? 0x9e3779b9 : 0x85ebca6b;
     var value =
       sideSeed ^
@@ -175,7 +174,7 @@ const RestartPositioning: RestartPositioningApi = {
 
   applyOpponentDistance: function (config, formation, positions, ballPosition) {
     var result: Vector2[] = [];
-    var minimum = config.restarts.opponentDistance || 0;
+    var minimum = config.restarts.opponentDistance;
     for (var i = 0; i < positions.length; i++) {
       var target = positions[i];
       var dx = target.x - ballPosition.x;

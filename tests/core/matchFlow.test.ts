@@ -3,7 +3,7 @@ import { makeFixture, type TestFixture } from "../helpers";
 import { Vector2 as Vector2d } from "../../src/math/vector";
 
 function enterOutOfPlay(fixture: TestFixture): boolean {
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.ball.lastTouchedBy = "home";
   fixture.ball.position.x =
     fixture.config.pitch.fieldRight + fixture.config.ball.radius + 1;
@@ -25,11 +25,11 @@ test("MatchFlow delegates its pre-physics update only during a restart", functio
     updates++;
   };
 
-  fixture.game.matchFlow.state = "normalPlay";
+  fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.game.matchFlow.updateBeforePhysics(fixture.game.context());
   assertEqual(updates, 0);
 
-  fixture.game.matchFlow.state = "restart";
+  fixture.game.beginRestart({ type: "kickoff", awardedTo: "home" });
   fixture.game.matchFlow.updateBeforePhysics(fixture.game.context());
   assertEqual(updates, 1);
 });
@@ -53,7 +53,7 @@ test("MatchFlow awards a touchline exit to the team that did not touch last", fu
 
 test("MatchFlow chooses top end-line goal kicks and corners from last touch", function () {
   var goalKick = makeFixture();
-  goalKick.game.matchFlow.state = "normalPlay";
+  goalKick.game.matchFlow.enterNormalPlayForTesting();
   goalKick.ball.lastTouchedBy = "home";
   goalKick.ball.position.y =
     goalKick.config.pitch.fieldTop - goalKick.config.ball.radius - 1;
@@ -67,7 +67,7 @@ test("MatchFlow chooses top end-line goal kicks and corners from last touch", fu
   );
 
   var corner = makeFixture();
-  corner.game.matchFlow.state = "normalPlay";
+  corner.game.matchFlow.enterNormalPlayForTesting();
   corner.ball.lastTouchedBy = "away";
   corner.ball.position.x = corner.config.pitch.fieldLeft + 20;
   corner.ball.position.y =
@@ -84,7 +84,7 @@ test("MatchFlow chooses top end-line goal kicks and corners from last touch", fu
 
 test("MatchFlow chooses bottom end-line goal kicks and corners from last touch", function () {
   var goalKick = makeFixture();
-  goalKick.game.matchFlow.state = "normalPlay";
+  goalKick.game.matchFlow.enterNormalPlayForTesting();
   goalKick.ball.lastTouchedBy = "away";
   goalKick.ball.position.y =
     goalKick.config.pitch.fieldBottom + goalKick.config.ball.radius + 1;
@@ -98,7 +98,7 @@ test("MatchFlow chooses bottom end-line goal kicks and corners from last touch",
   );
 
   var corner = makeFixture();
-  corner.game.matchFlow.state = "normalPlay";
+  corner.game.matchFlow.enterNormalPlayForTesting();
   corner.ball.lastTouchedBy = "home";
   corner.ball.position.x = corner.config.pitch.fieldRight - 20;
   corner.ball.position.y =
@@ -132,7 +132,7 @@ test("MatchFlow exposes ball-only simulation while play is out", function () {
 
   assertEqual(enterOutOfPlay(fixture), true);
 
-  assertEqual(fixture.game.matchFlow.state, "outOfPlay");
+  assertEqual(fixture.game.matchFlow.snapshot().kind, "outOfPlay");
   assertEqual(fixture.game.matchFlow.isOutOfPlay(), true);
   assertEqual(fixture.game.matchFlow.simulationMode(), "ballOnly");
 });
@@ -162,7 +162,7 @@ test("MatchFlow pauses and resumes an out-of-play delay", function () {
     fixture.config.restarts.outOfPlayDelaySeconds / 2,
   );
 
-  assertEqual(fixture.game.matchFlow.state, "restart");
+  assertEqual(fixture.game.matchFlow.snapshot().kind, "restart");
   assertEqual(fixture.restartController.type(), "throwIn");
 });
 
@@ -172,7 +172,9 @@ test("MatchFlow rejects input and external restarts while play is out", function
 
   assertEqual(fixture.game.resumeFromInput(new Vector2d(1, 0)), false);
   assertEqual(
-    fixture.game.beginRestart("corner", "home", {
+    fixture.game.beginRestart({
+      type: "corner",
+      awardedTo: "home",
       boundary: "top",
       position: new Vector2d(
         fixture.config.pitch.fieldLeft,
@@ -181,5 +183,5 @@ test("MatchFlow rejects input and external restarts while play is out", function
     }),
     false,
   );
-  assertEqual(fixture.game.matchFlow.state, "outOfPlay");
+  assertEqual(fixture.game.matchFlow.snapshot().kind, "outOfPlay");
 });

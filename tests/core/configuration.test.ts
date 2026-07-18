@@ -1,5 +1,8 @@
 import { assertEqual, assertNear, test } from "../testlib";
 import { makeConfig } from "../helpers";
+import { Vector2 } from "../../src/math/vector";
+import { Ball } from "../../src/world/ball";
+import { Player } from "../../src/world/player";
 
 // Don't make asserts on how test tool works
 // test("Test helper overrides production team-size defaults", function() {
@@ -69,4 +72,21 @@ test("Configuration falls back for invalid query options", function () {
   assertEqual(config.teams.homeSize, 11);
   assertEqual(config.teams.awaySize, 11);
   assertEqual(config.restarts.outOfPlayEnabled, true);
+});
+
+test("Entity constructors honor zero-valued required configuration", function () {
+  var config = makeConfig();
+  config.player.animationIdleGraceSeconds = 0;
+  config.ball.heldOffsetX = 0;
+  var player = new Player(
+    config.assets.playerHome,
+    new Vector2(0, 0),
+    "home",
+    config.player,
+  );
+  var ball = new Ball(config.assets.ball, new Vector2(0, 0), config.ball);
+  ball.heldBy = player;
+
+  assertEqual(player.animationIdleGraceSeconds, 0);
+  assertEqual(ball.heldPosition().x, 0);
 });

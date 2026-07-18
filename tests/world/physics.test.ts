@@ -160,7 +160,7 @@ test("Physics player-only update advances players without touching the ball", fu
   fixture.ball.velocity.x = 100;
   fixture.physics.lastUpdated = new Date().getTime() - 100;
 
-  fixture.physics.updatePlayersOnly();
+  fixture.physics.update("playersOnly");
 
   assertEqual(fixture.ball.position.x, 104);
   assertEqual(fixture.ball.position.y, 100);

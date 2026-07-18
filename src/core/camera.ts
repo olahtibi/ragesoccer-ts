@@ -23,10 +23,10 @@ class Camera {
     ctx.save();
     const scaleBy = this.config.computeScaleBy();
     ctx.scale(scaleBy, scaleBy);
-    const target = this.focusTarget || this.stadium.ball.position;
+    const target = this.focusTarget ?? this.stadium.ball.position;
     const desired = this.viewportPositionForTarget(target, scaleBy);
     if (this.focusTarget != null) {
-      const lerp = this.config.cutscene.cameraLerp || 1;
+      const lerp = this.config.cutscene.cameraLerp;
       this.position.x += (desired.x - this.position.x) * lerp;
       this.position.y += (desired.y - this.position.y) * lerp;
     } else {

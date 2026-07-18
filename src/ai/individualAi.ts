@@ -70,8 +70,8 @@ class IndividualAi {
       this.activeCommand.reset();
     }
     this.command = command;
-    this.target = target || null;
-    this.activeCommand = this.commands[this.command] || null;
+    this.target = target;
+    this.activeCommand = this.commands[this.command];
   }
 
   public update(context: IndividualAiContext): void {
@@ -161,9 +161,8 @@ class IndividualAi {
     const dx = target.x - this.player.position.x;
     const dy = target.y - this.player.position.y;
     const distance = MathLib.vectorLength(dx, dy);
-    const deadband =
-      this.config.ai.targetDeadband || this.config.ai.targetReachedRadius;
-    const resumeRadius = this.config.ai.targetResumeRadius || deadband;
+    const deadband = this.config.ai.targetDeadband;
+    const resumeRadius = this.config.ai.targetResumeRadius;
     const reachedRadius = resumeFromStop
       ? Math.max(deadband, resumeRadius)
       : deadband;
@@ -171,10 +170,10 @@ class IndividualAi {
       return this.stop();
     }
 
-    const arrivalRadius = this.config.ai.arrivalSlowRadius || 0;
+    const arrivalRadius = this.config.ai.arrivalSlowRadius;
     let arrivalFactor = 1;
     if (arrivalRadius > 0 && distance < arrivalRadius) {
-      const minFactor = this.config.ai.arrivalMinSpeedFactor || 0;
+      const minFactor = this.config.ai.arrivalMinSpeedFactor;
       arrivalFactor = minFactor + ((1 - minFactor) * distance) / arrivalRadius;
     }
 

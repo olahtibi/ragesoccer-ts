@@ -4,6 +4,7 @@ import type { Configuration } from "../core/configuration";
 import type { Ball } from "../world/ball";
 import type { Player } from "../world/player";
 import type { Team } from "../world/team";
+import { ARROW_KEYS } from "./keys";
 export { HumanController };
 
 class HumanController {
@@ -39,23 +40,25 @@ class HumanController {
     this.touchTarget = null;
     const player = this.player();
     if (player == null) return;
-    player.velocity.x = 0;
-    player.velocity.y = 0;
+    player.stop();
   }
 
   public hasMovementInput(): boolean {
     return Boolean(
-      this.keys[37] || this.keys[38] || this.keys[39] || this.keys[40],
+      this.keys[ARROW_KEYS.left] ||
+      this.keys[ARROW_KEYS.up] ||
+      this.keys[ARROW_KEYS.right] ||
+      this.keys[ARROW_KEYS.down],
     );
   }
 
   public inputDirection(): Vector2 | null {
     let x = 0;
     let y = 0;
-    if (this.keys[37]) x--;
-    if (this.keys[39]) x++;
-    if (this.keys[38]) y--;
-    if (this.keys[40]) y++;
+    if (this.keys[ARROW_KEYS.left]) x--;
+    if (this.keys[ARROW_KEYS.right]) x++;
+    if (this.keys[ARROW_KEYS.up]) y--;
+    if (this.keys[ARROW_KEYS.down]) y++;
     if (x == 0 && y == 0) return null;
     return MathLib.normalizeVector(x, y, 0, -1);
   }
@@ -64,8 +67,7 @@ class HumanController {
     if (preferredPlayer != null) {
       const selected = this.team.humanPlayer;
       if (selected != null && selected !== preferredPlayer) {
-        selected.velocity.x = 0;
-        selected.velocity.y = 0;
+        selected.stop();
       }
       this.team.humanPlayer = preferredPlayer;
       return preferredPlayer;
@@ -85,14 +87,13 @@ class HumanController {
       );
       if (
         currentDistance <=
-        closestDistance + (this.config.input.humanSwitchHysteresisDistance || 0)
+        closestDistance + this.config.input.humanSwitchHysteresisDistance
       ) {
         return current;
       }
     }
     if (current != null && closest !== current) {
-      current.velocity.x = 0;
-      current.velocity.y = 0;
+      current.stop();
     }
     this.team.humanPlayer = closest;
     return closest;
@@ -118,8 +119,7 @@ class HumanController {
   public update(canMove: boolean): void {
     const player = this.player();
     if (player == null) return;
-    player.velocity.x = 0;
-    player.velocity.y = 0;
+    player.stop();
     if (!canMove) {
       this.touchTarget = null;
       return;
@@ -127,10 +127,10 @@ class HumanController {
 
     const velocity = this.config.teamVelocity("home");
     if (this.hasMovementInput()) {
-      if (this.keys[38]) player.velocity.y -= velocity;
-      if (this.keys[40]) player.velocity.y += velocity;
-      if (this.keys[37]) player.velocity.x -= velocity;
-      if (this.keys[39]) player.velocity.x += velocity;
+      if (this.keys[ARROW_KEYS.up]) player.velocity.y -= velocity;
+      if (this.keys[ARROW_KEYS.down]) player.velocity.y += velocity;
+      if (this.keys[ARROW_KEYS.left]) player.velocity.x -= velocity;
+      if (this.keys[ARROW_KEYS.right]) player.velocity.x += velocity;
       if (player.velocity.x != 0 && player.velocity.y != 0) {
         player.velocity.x /= Math.sqrt(2);
         player.velocity.y /= Math.sqrt(2);
@@ -141,12 +141,12 @@ class HumanController {
     if (this.touchTarget == null) return;
     if (
       MathLib.computeDistance(player.position, this.touchTarget) <=
-      (this.config.ai.targetReachedRadius || 1)
+      this.config.ai.targetReachedRadius
     ) {
       this.touchTarget = null;
       return;
     }
-    player.velocity = MathLib.computeVelocityForTarget(
+    player.velocity = MathLib.velocityTowards(
       player.position,
       this.touchTarget,
       velocity,

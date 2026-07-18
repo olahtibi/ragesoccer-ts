@@ -50,3 +50,22 @@ test("Stadium marks the team-owned human player", function () {
     fixture.homeTeam.humanPlayer === fixture.restartController.taker("home"),
   );
 });
+
+test("Stadium can hide the human player marker while movement is locked", function () {
+  var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 1 });
+  var strokes = 0;
+  var ctx = {
+    drawImage: function () {},
+    beginPath: function () {},
+    moveTo: function () {},
+    lineTo: function () {},
+    closePath: function () {},
+    stroke: function () {
+      strokes++;
+    },
+  };
+
+  fixture.stadium.draw(canvasContext(ctx), false);
+
+  assertEqual(strokes, 0);
+});

@@ -58,10 +58,18 @@ test("MathLib computes vectors from radian angles", function () {
 
 test("MathLib detects points inside a rectangle", function () {
   assertTrue(
-    MathLib.inside(new Vector2d(1, 2), new Vector2d(5, 6), new Vector2d(3, 4)),
+    MathLib.pointInRectangle(
+      new Vector2d(3, 4),
+      new Vector2d(1, 2),
+      new Vector2d(5, 6),
+    ),
   );
   assertTrue(
-    !MathLib.inside(new Vector2d(1, 2), new Vector2d(5, 6), new Vector2d(6, 4)),
+    !MathLib.pointInRectangle(
+      new Vector2d(6, 4),
+      new Vector2d(1, 2),
+      new Vector2d(5, 6),
+    ),
   );
 });
 
@@ -78,7 +86,7 @@ test("MathLib detects horizontal intersections", function () {
 });
 
 test("MathLib computes velocity toward a target", function () {
-  var velocity = MathLib.computeVelocityForTarget(
+  var velocity = MathLib.velocityTowards(
     new Vector2d(0, 0),
     new Vector2d(3, 4),
     10,

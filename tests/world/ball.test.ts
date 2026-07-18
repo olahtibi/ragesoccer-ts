@@ -1,5 +1,21 @@
 import { assertEqual, assertNear, test } from "../testlib";
 import { canvasContext, makeFixture } from "../helpers";
+import { Vector3 } from "../../src/math/vector";
+
+test("Ball placement resets all velocity components", function () {
+  var fixture = makeFixture();
+  fixture.ball.velocity.x = 1;
+  fixture.ball.velocity.y = 2;
+  fixture.ball.velocity.z = 3;
+
+  fixture.ball.placeAt(new Vector3(10, 20, 0));
+
+  assertEqual(fixture.ball.position.x, 10);
+  assertEqual(fixture.ball.position.y, 20);
+  assertEqual(fixture.ball.velocity.x, 0);
+  assertEqual(fixture.ball.velocity.y, 0);
+  assertEqual(fixture.ball.velocity.z, 0);
+});
 
 function drawingContext(): CanvasRenderingContext2D {
   return canvasContext({ drawImage: function () {} });

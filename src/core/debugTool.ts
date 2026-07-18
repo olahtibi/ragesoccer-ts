@@ -2,7 +2,6 @@ import type { Vector2 } from "../math/vector";
 import { TEAM_SIDES } from "../types";
 import type {
   DebugInputEvent,
-  MatchState,
   RestartPhase,
   RestartType,
   TeamSide,
@@ -11,6 +10,7 @@ import type { Ball } from "../world/ball";
 import type { Stadium } from "../world/stadium";
 import type { Configuration } from "./configuration";
 import type { Game } from "./game";
+import type { MatchFlowSession } from "./matchFlow";
 
 export { DebugTool };
 
@@ -48,7 +48,7 @@ interface GameDebugSnapshot {
   frame: number;
   time: number;
   dt: number;
-  matchState: MatchState;
+  matchState: MatchFlowSession["kind"];
   restart: { type: RestartType | null; phase: RestartPhase | null };
   scores: { home: number; away: number };
   ball: {
@@ -80,7 +80,7 @@ class DebugTool {
       return;
     }
 
-    const everyNFrames = this.config.debug.logEveryNFrames || 1;
+    const everyNFrames = this.config.debug.logEveryNFrames;
     const frame = this.frame;
     this.frame++;
 
@@ -156,10 +156,8 @@ class DebugTool {
     return {
       frame: frame,
       time: this.round(time),
-      dt: this.round(
-        game.physics && game.physics.lastDt != null ? game.physics.lastDt : 0,
-      ),
-      matchState: game.matchFlow.state,
+      dt: this.round(game.physics.lastDt),
+      matchState: game.matchFlow.snapshot().kind,
       restart: {
         type: game.matchFlow.restartType(),
         phase: game.matchFlow.restartPhase(),

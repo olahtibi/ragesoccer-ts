@@ -45,13 +45,9 @@ class Team {
       const player = new Player(
         img,
         positions[i],
-        this.config.player.spriteWidth,
-        this.config.player.spriteHeight,
-        this.config.player.spriteCenterX,
-        this.config.player.spriteCenterY,
+        this.side,
         this.config.player,
       );
-      player.teamSide = this.side;
       if (this.side == "away") {
         player.facingY = 1;
       }

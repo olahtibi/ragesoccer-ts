@@ -25,13 +25,14 @@ test("Runtime source is TypeScript and uses module entry points", function () {
   );
 });
 
-test("PositioningController retains the sceneTeams ownership contract", function () {
+test("PositioningController owns one placement-based session", function () {
   const source = fs.readFileSync(
     path.join(sourceRoot, "core/restarts/positioningController.ts"),
     "utf8",
   );
-  assertTrue(source.includes("options.sceneTeams"));
-  assertTrue(source.includes("this.sceneTeams"));
+  assertTrue(source.includes("private session: PositioningSession | null"));
+  assertTrue(source.includes("options.placements"));
+  assertTrue(!source.includes("sceneTeams"));
   assertTrue(source.includes("movePlayerToTarget("));
   assertTrue(!source.includes("\n  movePlayerToTarget("));
 });

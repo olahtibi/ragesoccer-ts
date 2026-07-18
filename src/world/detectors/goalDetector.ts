@@ -18,35 +18,35 @@ class GoalDetector {
   public update(): TeamSide | null {
     if (
       this.state == "start" &&
-      MathLib.inside(
+      MathLib.pointInRectangle(
+        this.ball.position,
         this.config.pitch.goalTopTopLeft,
         this.config.pitch.goalTopBottomRight,
-        this.ball.position,
       )
     ) {
       this.state = "goal";
       return "home";
     } else if (
       this.state == "start" &&
-      MathLib.inside(
+      MathLib.pointInRectangle(
+        this.ball.position,
         this.config.pitch.goalBottomTopLeft,
         this.config.pitch.goalBottomBottomRight,
-        this.ball.position,
       )
     ) {
       this.state = "goal";
       return "away";
     } else if (
       this.state == "goal" &&
-      !MathLib.inside(
+      !MathLib.pointInRectangle(
+        this.ball.position,
         this.config.pitch.goalTopTopLeft,
         this.config.pitch.goalTopBottomRight,
-        this.ball.position,
       ) &&
-      !MathLib.inside(
+      !MathLib.pointInRectangle(
+        this.ball.position,
         this.config.pitch.goalBottomTopLeft,
         this.config.pitch.goalBottomBottomRight,
-        this.ball.position,
       )
     ) {
       this.state = "start";

@@ -14,6 +14,6 @@ class RestartRegistry {
   }
 
   public get(type: RestartType): RestartStrategy | null {
-    return this.strategies[type] || null;
+    return this.strategies[type] ?? null;
   }
 }
