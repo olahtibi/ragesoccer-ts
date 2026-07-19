@@ -12,6 +12,7 @@ class Ball {
   public readonly velocity: Vector3d;
   public phaseIndex: number;
   public lastTouchedBy: TeamSide | null;
+  public lastTouchedPlayer: Player | null;
   public heldBy: Player | null;
   public rollDistance: number;
   private readonly spinPxPerPhase: number;
@@ -33,6 +34,7 @@ class Ball {
     this.velocity = new Vector3d(0, 0, 0);
     this.phaseIndex = 0;
     this.lastTouchedBy = null;
+    this.lastTouchedPlayer = null;
     this.heldBy = null;
     // Accumulated distance rolled since the last sprite phase change.
     this.rollDistance = 0;

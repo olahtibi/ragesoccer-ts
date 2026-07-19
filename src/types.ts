@@ -12,8 +12,9 @@ export const TEAM_SIDES = ["home", "away"] as const;
 export type TeamSideMap<T> = Record<TeamSide, T>;
 export type RestartType = "kickoff" | "throwIn" | "corner" | "goalKick";
 export type RestartPhase =
-  "positioning" | "waitingForInput" | "inProgress" | "complete";
-export type SimulationMode = "none" | "ballOnly" | "playersOnly" | "full";
+  "celebrating" | "positioning" | "waitingForInput" | "inProgress" | "complete";
+export type SimulationMode =
+  "none" | "ballOnly" | "playersOnly" | "cutscene" | "full";
 export type Boundary = "left" | "right" | "top" | "bottom";
 export type TeamAiState =
   | "kickoffUs"

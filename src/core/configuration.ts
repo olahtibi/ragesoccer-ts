@@ -203,6 +203,8 @@ export class Configuration {
     arrivedRadius: 3,
     cameraArrivedRadius: 2,
     cameraLerp: 0.06,
+    goalCelebrationSeconds: 5,
+    goalFocusSeconds: 1,
   };
   readonly input = { humanSwitchHysteresisDistance: 20 };
   readonly debug = { enabled: true, logSeconds: 3, logEveryNFrames: 4 };

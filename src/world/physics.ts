@@ -4,7 +4,8 @@ import type { Configuration } from "../core/configuration";
 import type { Stadium } from "./stadium";
 export { Physics };
 
-export type PhysicsUpdateMode = "full" | "playersOnly" | "ballOnly";
+export type PhysicsUpdateMode =
+  "full" | "playersOnly" | "ballOnly" | "cutscene";
 
 interface CollisionSegment {
   name: string;
@@ -118,6 +119,7 @@ class Physics {
         continue;
       }
       ball.lastTouchedBy = p.teamSide;
+      ball.lastTouchedPlayer = p;
       // Contact normal (unit vector from player toward ball).
       const d = Math.sqrt(d2);
       let nx: number;

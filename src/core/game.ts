@@ -113,9 +113,9 @@ class Game {
     } else if (mode == "ballOnly") {
       this.physics.update("ballOnly");
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
-    } else if (mode == "playersOnly") {
+    } else if (mode == "playersOnly" || mode == "cutscene") {
       this.matchFlow.updateBeforePhysics(context);
-      this.physics.update("playersOnly");
+      this.physics.update(mode);
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
     } else {
       this.updateAi();

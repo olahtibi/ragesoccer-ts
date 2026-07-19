@@ -48,6 +48,24 @@ test("Physics advances every player in the stadium without managing animation", 
   }
 });
 
+test("Cutscene physics advances players and ball without new contacts", function () {
+  var fixture = makeFixture();
+  fixture.config.physics.maxDeltaSeconds = 1;
+  fixture.playerHome.position.x = 100;
+  fixture.playerHome.position.y = 100;
+  fixture.playerHome.velocity.x = 10;
+  fixture.ball.position.x = 300;
+  fixture.ball.position.y = 300;
+  fixture.ball.velocity.x = 20;
+
+  advancePhysics(fixture, 0.5, "cutscene");
+
+  assertNear(fixture.playerHome.position.x, 105, 0.0001);
+  assertTrue(fixture.ball.position.x > 300);
+  assertEqual(fixture.ball.lastTouchedBy, null);
+  assertEqual(fixture.ball.lastTouchedPlayer, null);
+});
+
 test("Physics advances a full 22-player match", function () {
   var fixture = makeFixture({ homeTeamSize: 11, awayTeamSize: 11 });
   assertEqual(fixture.stadium.players.length, 22);
@@ -124,6 +142,7 @@ test("Physics ball-player contact kicks the ball outward", function () {
   assertTrue(fixture.ball.velocity.z > 0);
   assertNear(fixture.ball.position.x, 106.01, 0.0001);
   assertEqual(fixture.ball.lastTouchedBy, "home");
+  assertTrue(fixture.ball.lastTouchedPlayer === fixture.playerHome);
 });
 
 test("Disabled out-of-play restarts preserve reflective pitch boundaries", function () {

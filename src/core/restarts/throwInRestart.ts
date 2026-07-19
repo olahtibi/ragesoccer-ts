@@ -109,6 +109,7 @@ class ThrowInRestart extends BaseRestartStrategy {
     context.ball.velocity.y = normalized.y * this.config.restarts.throwInSpeed;
     context.ball.velocity.z = this.config.restarts.throwInLoft;
     context.ball.lastTouchedBy = request.awardedTo;
+    context.ball.lastTouchedPlayer = this.taker;
     this.launched = true;
     return true;
   }
