@@ -363,6 +363,28 @@ test("Kickoff assigns relative states and movement permission", function () {
   assertEqual(fixture.restartController.canTeamMove("away"), true);
 });
 
+test("Away kickoff aims its opening pass backward", function () {
+  var fixture = makeFixture({ kickoffSide: "away" });
+  fixture.config.restarts.opponentDelaySeconds = 0;
+  fixture.restartController.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+  var target = required(fixture.restartController.attackTarget("away"));
+
+  assertEqual(target.x, fixture.config.pitch.initialBallPosition.x);
+  assertTrue(target.y < fixture.config.pitch.aiCenterY);
+  assertEqual(fixture.restartController.attackTarget("home"), null);
+
+  var taker = required(fixture.restartController.taker("away"));
+  taker.position.x = fixture.ball.position.x;
+  taker.position.y = fixture.ball.position.y + 4;
+  updateTeamAis(fixture);
+  advancePhysics(fixture, 0);
+
+  assertTrue(fixture.ball.velocity.y < 0);
+});
+
 test("Throw-in uses fresh directional input to launch a lofted inward throw", function () {
   var fixture = makeFixture();
   fixture.game.beginRestart({

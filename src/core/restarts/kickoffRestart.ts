@@ -72,6 +72,18 @@ class KickoffRestart extends BaseRestartStrategy {
     return true;
   }
 
+  public override attackTarget(
+    side: TeamSide,
+    request: RestartRequest,
+  ): Vector2 | null {
+    assertRestartType(request, "kickoff");
+    if (side != "away" || side != request.awardedTo) return null;
+    return new Vector2d(
+      this.config.pitch.initialBallPosition.x,
+      this.config.pitch.aiCenterY - this.config.ai.formationFallbackDepth,
+    );
+  }
+
   private applyPositioningRules(
     positions: Vector2[],
     side: TeamSide,

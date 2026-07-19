@@ -178,7 +178,7 @@ export class Configuration {
   } = {
     kickoffSide: "home",
     kickoffTakerDistance: 8,
-    kickoffImpulseMultiplier: 0.3,
+    kickoffImpulseMultiplier: 0.5,
     outOfPlayEnabled: true,
     outOfPlayDelaySeconds: 0.35,
     opponentDelaySeconds: 1,
