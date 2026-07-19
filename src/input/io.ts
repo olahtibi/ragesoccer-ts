@@ -6,6 +6,7 @@ export { BrowserInput };
 const KEY = {
   ...ARROW_KEYS,
   debugCorner: 67,
+  debugThrowIn: 84,
   fps: 70,
   pauseAndDump: 191,
   viewportSmaller: 81,
@@ -91,6 +92,30 @@ class BrowserInput {
         awardedTo: "home",
         boundary: "top",
         position: new Vector2d(cornerX, this.game.config.pitch.fieldTop),
+      });
+    }
+    if (
+      keyCode == KEY.debugThrowIn &&
+      this.game.config.debug.enabled == true &&
+      !this.game.matchFlow.isOutOfPlay()
+    ) {
+      const ball = this.game.stadium.ball.position;
+      const distanceToLeft = Math.abs(
+        ball.x - this.game.config.pitch.fieldLeft,
+      );
+      const distanceToRight = Math.abs(
+        this.game.config.pitch.fieldRight - ball.x,
+      );
+      const boundary = distanceToLeft <= distanceToRight ? "left" : "right";
+      const x =
+        boundary == "left"
+          ? this.game.config.pitch.fieldLeft
+          : this.game.config.pitch.fieldRight;
+      this.game.beginRestart({
+        type: "throwIn",
+        awardedTo: "home",
+        boundary,
+        position: new Vector2d(x, ball.y),
       });
     }
     if (keyCode == KEY.pauseAndDump && this.game.config.debug.enabled == true) {

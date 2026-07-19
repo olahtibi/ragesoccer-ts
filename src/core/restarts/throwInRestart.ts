@@ -76,7 +76,9 @@ class ThrowInRestart extends BaseRestartStrategy {
         (candidate) => candidate.player === this.receiver,
       );
       if (placement != null) placement.target = target;
-      scene.additionalReadyPlayers = [this.receiver];
+      if (request.awardedTo == "away") {
+        scene.additionalReadyPlayers = [this.receiver];
+      }
     }
     return scene;
   }
@@ -191,6 +193,7 @@ class ThrowInRestart extends BaseRestartStrategy {
     context.ball.lastTouchedBy = request.awardedTo;
     context.ball.lastTouchedPlayer = this.taker;
     context.ball.intendedReceiver = this.receiver;
+    if (request.awardedTo == "home") context.humanController.clearInput();
     this.launched = true;
     return true;
   }
