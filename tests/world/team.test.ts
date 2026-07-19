@@ -11,6 +11,15 @@ test("Team owns players and score without constructing AI", function () {
   assertEqual("teamAi" in fixture.homeTeam, false);
 });
 
+test("Team display names follow selected strength", function () {
+  var fixture = makeFixture({ playerStrength: 10, opponentStrength: 1 });
+
+  assertEqual(fixture.homeTeam.displayName, "Red Titans");
+  assertEqual(fixture.awayTeam.displayName, "Blue Novices");
+  assertEqual(fixture.homeTeam.shortName, "RDT");
+  assertEqual(fixture.awayTeam.shortName, "BNV");
+});
+
 test("Team creates relative home kickoff positions", function () {
   var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 3 });
   var formation = new Formation(fixture.config);

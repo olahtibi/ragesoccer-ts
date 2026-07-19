@@ -101,49 +101,139 @@ class Camera {
     ctx: CanvasRenderingContext2D,
     displayFps: number,
   ): void {
-    if (
-      this.config.viewport.ratio >= this.config.viewport.overlayMinRatio &&
-      this.config.viewport.ratio <= this.config.viewport.overlayMaxRatio
-    ) {
-      ctx.font = "30px Arial";
-      ctx.fillStyle = "white";
-      ctx.fillText(
-        String(this.stadium.homeTeam.score),
-        20 - this.position.x,
-        40 - this.position.y,
-      );
-      ctx.fillStyle = "red";
-      ctx.fillText(
-        String(this.stadium.homeTeam.score),
-        21 - this.position.x,
-        39 - this.position.y,
-      );
-      ctx.fillStyle = "white";
-      ctx.fillText("-", 60 - this.position.x, 40 - this.position.y);
-      ctx.fillStyle = "black";
-      ctx.fillText("-", 61 - this.position.x, 39 - this.position.y);
-      ctx.fillStyle = "white";
-      ctx.fillText(
-        String(this.stadium.awayTeam.score),
-        80 - this.position.x,
-        40 - this.position.y,
-      );
-      ctx.fillStyle = "blue";
-      ctx.fillText(
-        String(this.stadium.awayTeam.score),
-        81 - this.position.x,
-        39 - this.position.y,
-      );
-      if (this.showStats) {
-        ctx.font = "10px Arial";
-        ctx.fillStyle = "white";
-        ctx.fillText(
-          "FPS: " + displayFps,
-          350 - this.position.x,
-          15 - this.position.y,
-        );
-      }
-    }
     ctx.restore();
+    ctx.save();
+
+    const screenWidth = ctx.canvas?.width || this.config.viewport.width;
+    const margin = 8;
+    const panelWidth = Math.max(0, Math.min(176, screenWidth - margin * 2));
+    const panelHeight = 28;
+    const panelX = margin;
+    const panelY = margin;
+
+    this.drawScorePanel(ctx, panelX, panelY, panelWidth, panelHeight);
+    if (this.showStats) {
+      this.drawFpsPanel(
+        ctx,
+        displayFps,
+        screenWidth,
+        panelX,
+        panelY,
+        panelWidth,
+        panelHeight,
+      );
+    }
+
+    ctx.restore();
+  }
+
+  private drawScorePanel(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    this.drawHudPanel(ctx, x, y, width, height);
+
+    const centerY = y + height / 2;
+    ctx.fillStyle = "#e4473a";
+    ctx.fillRect(x + 1, y + 1, 4, Math.max(0, height - 2));
+    ctx.fillStyle = "#3974d9";
+    ctx.fillRect(x + width - 5, y + 1, 4, Math.max(0, height - 2));
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = 'bold 11px "Arial Narrow", Arial, sans-serif';
+    this.drawHudText(
+      ctx,
+      this.stadium.homeTeam.shortName,
+      x + 27,
+      centerY,
+      "#ffffff",
+    );
+    this.drawHudText(
+      ctx,
+      this.stadium.awayTeam.shortName,
+      x + width - 27,
+      centerY,
+      "#ffffff",
+    );
+
+    ctx.font = 'bold 14px "Arial Narrow", Arial, sans-serif';
+    this.drawHudText(
+      ctx,
+      String(this.stadium.homeTeam.score),
+      x + 65,
+      centerY,
+      "#ffffff",
+    );
+    this.drawHudText(ctx, "-", x + width / 2, centerY, "#d8d8d8");
+    this.drawHudText(
+      ctx,
+      String(this.stadium.awayTeam.score),
+      x + width - 65,
+      centerY,
+      "#ffffff",
+    );
+  }
+
+  private drawFpsPanel(
+    ctx: CanvasRenderingContext2D,
+    displayFps: number,
+    screenWidth: number,
+    scoreX: number,
+    scoreY: number,
+    scoreWidth: number,
+    scoreHeight: number,
+  ): void {
+    const margin = 8;
+    const width = 68;
+    const height = 20;
+    const x = Math.max(margin, screenWidth - margin - width);
+    const overlapsScore = x < scoreX + scoreWidth + 4;
+    const y = overlapsScore ? scoreY + scoreHeight + 6 : margin;
+
+    this.drawHudPanel(ctx, x, y, width, height);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = 'bold 10px "Arial Narrow", Arial, sans-serif';
+    this.drawHudText(
+      ctx,
+      `FPS ${displayFps}`,
+      x + width / 2,
+      y + height / 2,
+      "#8dff8a",
+    );
+  }
+
+  private drawHudPanel(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    ctx.fillStyle = "rgba(72, 72, 72, 0.4)";
+    ctx.fillRect(x, y, width, height);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+    ctx.fillRect(x, y, width, 1);
+    ctx.fillRect(x, y + height - 1, width, 1);
+    ctx.fillRect(x, y + 1, 1, Math.max(0, height - 2));
+    ctx.fillRect(x + width - 1, y + 1, 1, Math.max(0, height - 2));
+  }
+
+  private drawHudText(
+    ctx: CanvasRenderingContext2D,
+    value: string,
+    x: number,
+    y: number,
+    color: string,
+  ): void {
+    ctx.fillStyle = "#000000";
+    ctx.fillText(value, x + 1, y + 1);
+    ctx.fillStyle = color;
+    ctx.fillText(value, x, y);
   }
 }

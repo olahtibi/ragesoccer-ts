@@ -39,8 +39,6 @@ export class Configuration {
     width: number;
     height: number;
     ratio: number;
-    overlayMinRatio: number;
-    overlayMaxRatio: number;
   };
 
   readonly physics = {
@@ -223,8 +221,6 @@ export class Configuration {
       width: options.width ?? window.innerWidth,
       height: options.height ?? window.innerHeight,
       ratio: 0.7,
-      overlayMinRatio: 0.6,
-      overlayMaxRatio: 0.8,
     };
     this.applyQueryOptions(options.search ?? window.location.search);
   }

@@ -89,13 +89,133 @@ test("Camera overlay renders team-owned scores and supplied FPS", function () {
     fillText: function (value: string) {
       labels.push(String(value));
     },
+    fillRect: function () {},
+    save: function () {},
     restore: function () {},
   });
 
   fixture.game.camera.renderOverlay(ctx, 60);
 
-  assertEqual(labels[0], "2");
-  assertEqual(labels[1], "2");
+  assertTrue(labels.indexOf("MAR") !== -1);
+  assertTrue(labels.indexOf("SAP") !== -1);
+  assertTrue(labels.indexOf("2") !== -1);
   assertTrue(labels.indexOf("1") !== -1);
-  assertTrue(labels.indexOf("FPS: 60") !== -1);
+  assertTrue(labels.indexOf("FPS 60") !== -1);
+});
+
+test("Camera overlay stays in screen space across camera positions and zoom", function () {
+  var fixture = makeFixture();
+  var panels: Array<{ x: number; y: number; width: number; height: number }> =
+    [];
+  var fonts: string[] = [];
+  var ctx = canvasContext({
+    canvas: fixture.config.assets.canvas,
+    fillRect: function (x: number, y: number, width: number, height: number) {
+      panels.push({ x: x, y: y, width: width, height: height });
+    },
+    fillText: function () {
+      fonts.push(ctx.font);
+    },
+    save: function () {},
+    restore: function () {},
+  });
+  fixture.config.assets.canvas.width = 640;
+
+  fixture.game.camera.position.x = -200;
+  fixture.game.camera.position.y = -300;
+  fixture.config.viewport.ratio = 0.1;
+  fixture.game.camera.renderOverlay(ctx, 60);
+  var firstPanel = panels[0];
+  var firstFonts = fonts.slice();
+
+  panels.length = 0;
+  fonts.length = 0;
+  fixture.game.camera.position.x = 100;
+  fixture.game.camera.position.y = 150;
+  fixture.config.viewport.ratio = 2;
+  fixture.game.camera.renderOverlay(ctx, 60);
+
+  assertEqual(firstPanel.x, 8);
+  assertEqual(firstPanel.y, 8);
+  assertEqual(firstPanel.width, 176);
+  assertEqual(firstPanel.height, 28);
+  assertEqual(panels[0].x, firstPanel.x);
+  assertEqual(panels[0].y, firstPanel.y);
+  assertEqual(panels[0].width, firstPanel.width);
+  assertEqual(panels[0].height, firstPanel.height);
+  assertEqual(fonts.join("|"), firstFonts.join("|"));
+  assertTrue(
+    fonts.indexOf('bold 11px "Arial Narrow", Arial, sans-serif') !== -1,
+  );
+  assertTrue(
+    fonts.indexOf('bold 14px "Arial Narrow", Arial, sans-serif') !== -1,
+  );
+});
+
+test("Camera overlay keeps FPS separate from the top-left score strip", function () {
+  var fixture = makeFixture();
+  fixture.game.camera.showStats = true;
+  var fpsPositions: Array<{ x: number; y: number }> = [];
+  var ctx = canvasContext({
+    canvas: fixture.config.assets.canvas,
+    fillRect: function () {},
+    fillText: function (value: string, x: number, y: number) {
+      if (value == "FPS 60") fpsPositions.push({ x: x, y: y });
+    },
+    save: function () {},
+    restore: function () {},
+  });
+
+  fixture.config.assets.canvas.width = 640;
+  fixture.game.camera.renderOverlay(ctx, 60);
+  assertEqual(fpsPositions[fpsPositions.length - 1].x, 598);
+  assertEqual(fpsPositions[fpsPositions.length - 1].y, 18);
+
+  fpsPositions.length = 0;
+  fixture.config.assets.canvas.width = 240;
+  fixture.game.camera.renderOverlay(ctx, 60);
+  assertEqual(fpsPositions[fpsPositions.length - 1].x, 198);
+  assertEqual(fpsPositions[fpsPositions.length - 1].y, 52);
+});
+
+test("Camera overlay leaves the panel center translucent", function () {
+  var fixture = makeFixture();
+  var paints: Array<{
+    color: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> = [];
+  var ctx = canvasContext({
+    canvas: fixture.config.assets.canvas,
+    fillRect: function (x: number, y: number, width: number, height: number) {
+      paints.push({
+        color: String(ctx.fillStyle),
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+      });
+    },
+    fillText: function () {},
+    save: function () {},
+    restore: function () {},
+  });
+  fixture.config.assets.canvas.width = 640;
+
+  fixture.game.camera.renderOverlay(ctx, 60);
+
+  var homePanelCenterX = 80;
+  var panelCenterY = 22;
+  var centerPaints = paints.filter(function (paint) {
+    return (
+      homePanelCenterX >= paint.x &&
+      homePanelCenterX < paint.x + paint.width &&
+      panelCenterY >= paint.y &&
+      panelCenterY < paint.y + paint.height
+    );
+  });
+  assertEqual(centerPaints.length, 1);
+  assertEqual(centerPaints[0].color, "rgba(72, 72, 72, 0.3)");
 });

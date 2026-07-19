@@ -1,17 +1,5 @@
 import "./styles/menu.css";
-
-const strengths = [
-  ["Red Novices", "Blue Novices"],
-  ["Crimson Rovers", "Azure Rovers"],
-  ["Scarlet United", "Cobalt United"],
-  ["Ruby City", "Navy City"],
-  ["Cardinal Athletic", "Royal Athletic"],
-  ["Maroon Wanderers", "Sapphire Wanderers"],
-  ["Flame Rangers", "Ocean Rangers"],
-  ["Ember County", "Sky County"],
-  ["Inferno FC", "Glacier FC"],
-  ["Red Titans", "Blue Titans"],
-] as const;
+import { TEAM_CATALOG } from "./teamCatalog";
 
 function options(values: readonly string[], selected: string): string {
   return values
@@ -25,11 +13,11 @@ function options(values: readonly string[], selected: string): string {
 const form = document.querySelector<HTMLFormElement>("#optionsForm");
 if (!form) throw new Error("Missing options form");
 
-const homeStrengths = strengths.map(
-  ([home], index) => `${index + 1} - ${home}`,
+const homeStrengths = TEAM_CATALOG.map(
+  ({ home }, index) => `${index + 1} - ${home}`,
 );
-const awayStrengths = strengths.map(
-  ([, away], index) => `${index + 1} - ${away}`,
+const awayStrengths = TEAM_CATALOG.map(
+  ({ away }, index) => `${index + 1} - ${away}`,
 );
 const sizes = Array.from({ length: 11 }, (_, index) => String(index + 1));
 
