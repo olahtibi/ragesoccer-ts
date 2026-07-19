@@ -98,6 +98,17 @@ class TeamAi {
             this.team.side,
             this.team.players.length,
           ));
+    const goalkeeperIndex = this.formation
+      .rolesForSize(this.team.players.length)
+      .indexOf("goalie");
+    if (goalkeeperIndex >= 0) {
+      this.team.players[goalkeeperIndex].faceTowards(this.ball.position);
+    }
+    if (!restartActive && goalkeeperIndex >= 0) {
+      targets[goalkeeperIndex] = this.goalkeeperTarget(
+        targets[goalkeeperIndex],
+      );
+    }
     const openPlayFormation =
       !restartActive && (this.state == "attack" || this.state == "defense");
     targets = this.motionPlanner.targets(
@@ -153,6 +164,15 @@ class TeamAi {
     if (context.restart != null && context.restart.positioningTargets != null) {
       this.cornerPositioningTargets = context.restart.positioningTargets;
     }
+  }
+
+  private goalkeeperTarget(formationTarget: Vector2): Vector2 {
+    const left = this.config.pitch.goalTopTopLeft.x + this.config.player.radius;
+    const right =
+      this.config.pitch.goalTopTopRight.x - this.config.player.radius;
+    const target = formationTarget.clone();
+    target.x = Math.max(left, Math.min(right, this.ball.position.x));
+    return target;
   }
 
   private shouldChaseCorner(playerIndex: number): boolean {

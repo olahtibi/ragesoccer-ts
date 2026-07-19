@@ -1,4 +1,4 @@
-import { assertEqual, assertTrue, test } from "../testlib";
+import { assertEqual, assertNear, assertTrue, test } from "../testlib";
 import { makeConfig } from "../helpers";
 import { Formation, type FormationRole } from "../../src/ai/formation";
 import {
@@ -218,6 +218,29 @@ test("Formation keeps kickoff and defensive lines vertically sparse", function (
   assertTrue(
     config.ai.goalieDistance + awayDefense[1].y - awayDefense[0].y >= 60,
   );
+});
+
+test("Formation places goalkeepers at the configured goal-line distance", function () {
+  var config = makeConfig({ homeTeamSize: 2, awayTeamSize: 2 });
+  var formation = new Formation(config);
+  var home = formation.positions("defense", "home", 2);
+  var away = formation.positions("defense", "away", 2);
+
+  assertEqual(config.ai.goalieDistance, 3);
+  assertNear(
+    home[0].y,
+    config.pitch.goalBottomTopLeft.y - config.ai.goalieDistance,
+    0.0001,
+  );
+  assertNear(
+    away[0].y,
+    config.pitch.goalTopBottomLeft.y + config.ai.goalieDistance,
+    0.0001,
+  );
+
+  config.ai.goalieDistance = 8;
+  home = formation.positions("defense", "home", 2);
+  assertNear(home[0].y, config.pitch.goalBottomTopLeft.y - 8, 0.0001);
 });
 
 test("Formation defense shifts toward own goal and attack shifts toward opponent goal", function () {

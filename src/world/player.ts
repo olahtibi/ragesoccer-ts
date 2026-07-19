@@ -34,6 +34,7 @@ class Player {
   public phaseIndex: number;
   public stepDistance: number;
   public readonly teamSide: TeamSide;
+  private facingTarget: Vector2d | null;
   private readonly stepPxPerPhase: number;
   private readonly spritePhases: number;
   private readonly lastAnimationPosition: Vector2d;
@@ -77,6 +78,7 @@ class Player {
     this.phaseIndex = 0;
     this.stepDistance = 0;
     this.teamSide = teamSide;
+    this.facingTarget = null;
   }
 
   public stop(): void {
@@ -91,12 +93,26 @@ class Player {
   }
 
   public updateFacing(): void {
+    if (this.facingTarget != null) {
+      const dx = this.facingTarget.x - this.position.x;
+      const dy = this.facingTarget.y - this.position.y;
+      if (dx != 0 || dy != 0) {
+        const facing = this.facingForDirection(dx, dy);
+        this.facingX = facing.x;
+        this.facingY = facing.y;
+      }
+      return;
+    }
     if (this.velocity.x == 0 && this.velocity.y == 0) {
       return;
     }
     const facing = this.facingForDirection(this.velocity.x, this.velocity.y);
     this.facingX = facing.x;
     this.facingY = facing.y;
+  }
+
+  public faceTowards(target: Vector2d | null): void {
+    this.facingTarget = target;
   }
 
   public facingForDirection(x: number, y: number): Vector2d {
@@ -166,12 +182,15 @@ class Player {
       return;
     }
 
-    const direction = MathLib.normalizeVector(
-      this.velocity.x,
-      this.velocity.y,
-      this.facingX,
-      this.facingY,
-    );
+    const direction =
+      this.facingTarget == null
+        ? MathLib.normalizeVector(
+            this.velocity.x,
+            this.velocity.y,
+            this.facingX,
+            this.facingY,
+          )
+        : new Vector2d(this.facingX, this.facingY);
     this.animationIdleSeconds = 0;
     if (!this.animationMoving) {
       this.animationDirectionX = direction.x;

@@ -104,7 +104,7 @@ export class Configuration {
 
   readonly ai = {
     enabled: true,
-    goalieDistance: 30,
+    goalieDistance: 3,
     formationDefenderProgress: -200,
     formationMidfielderProgress: 0,
     formationStrikerProgress: 130,

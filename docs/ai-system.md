@@ -10,7 +10,7 @@ The AI is split into team decisions, per-player command dispatch, and command-lo
 - `moveToPosition`: approaches a formation target with personal pace and arrival easing.
 - `attackBall`: approaches behind the ball, detours for alignment, and commits to a shot using angular hysteresis.
 
-`Formation` maps team state, side, and team size to positions for teams from 1 through 11. It also creates kickoff and layered corner plans. Open-play targets add deterministic pace, wandering, ball response, smoothing, and teammate separation; goalkeepers and restart targets remain exact.
+`Formation` maps team state, side, and team size to positions for teams from 1 through 11. It also creates kickoff and layered corner plans. Open-play targets add deterministic pace, wandering, ball response, smoothing, and teammate separation; goalkeepers and restart targets remain exact. Outside active restarts, an AI goalkeeper tracks the ball laterally on its configured goal line and stays fully inside the posts unless closest-player selection assigns it to attack the ball. Goalkeepers face the ball while moving or standing.
 
 ## Adding a command
 
