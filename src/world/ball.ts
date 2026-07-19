@@ -22,6 +22,7 @@ class Ball {
   private readonly heldOffsetY: number;
   private readonly shadowFrame: number;
   private readonly shadowOffset: number;
+  private nextKickImpulseMultiplier: number;
 
   public constructor(
     imgBall: HTMLImageElement,
@@ -45,6 +46,7 @@ class Ball {
     this.heldOffsetY = ballConfig.heldOffsetY;
     this.shadowFrame = ballConfig.shadowFrame;
     this.shadowOffset = ballConfig.shadowOffset;
+    this.nextKickImpulseMultiplier = 1;
   }
 
   public stop(): void {
@@ -58,6 +60,17 @@ class Ball {
     this.position.y = position.y;
     this.position.z = position.z ?? 0;
     this.stop();
+    this.nextKickImpulseMultiplier = 1;
+  }
+
+  public scaleNextKickImpulse(multiplier: number): void {
+    this.nextKickImpulseMultiplier = multiplier;
+  }
+
+  public consumeKickImpulseMultiplier(): number {
+    const multiplier = this.nextKickImpulseMultiplier;
+    this.nextKickImpulseMultiplier = 1;
+    return multiplier;
   }
 
   public draw(ctx: CanvasRenderingContext2D): void {

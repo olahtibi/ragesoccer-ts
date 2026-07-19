@@ -152,6 +152,7 @@ export class Configuration {
   readonly restarts: {
     kickoffSide: TeamSide;
     kickoffTakerDistance: number;
+    kickoffImpulseMultiplier: number;
     outOfPlayEnabled: boolean;
     outOfPlayDelaySeconds: number;
     opponentDelaySeconds: number;
@@ -177,6 +178,7 @@ export class Configuration {
   } = {
     kickoffSide: "home",
     kickoffTakerDistance: 8,
+    kickoffImpulseMultiplier: 0.3,
     outOfPlayEnabled: true,
     outOfPlayDelaySeconds: 0.35,
     opponentDelaySeconds: 1,

@@ -153,7 +153,7 @@ class Physics {
         this.config.physics.baseKickBoost +
         approach * this.config.physics.playerMomentumTransfer;
 
-      const jTotal = jBounce + jKick;
+      const jTotal = (jBounce + jKick) * ball.consumeKickImpulseMultiplier();
       // Applied along +n (outward from the player).
       ball.velocity.x += nx * jTotal;
       ball.velocity.y += ny * jTotal;

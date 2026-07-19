@@ -1,5 +1,10 @@
 import { assertEqual, assertNear, assertTrue, test } from "../../testlib";
-import { completePositioning, makeFixture, updateTeamAis } from "../../helpers";
+import {
+  advancePhysics,
+  completePositioning,
+  makeFixture,
+  updateTeamAis,
+} from "../../helpers";
 import { Formation } from "../../../src/ai/formation";
 import { CornerFormation } from "../../../src/ai/cornerFormation";
 import { CornerRestart } from "../../../src/core/restarts/cornerRestart";
@@ -629,6 +634,31 @@ test("Kickoff clamps the human player to the center ellipse", function () {
 
   assertNear(ellipseDistance(fixture.config, player.position), 1, 0.0001);
   assertEqual(player.velocity.y, 0);
+});
+
+test("Kickoff scales only its first kick impulse", function () {
+  var fixture = makeFixture();
+  var player = required(fixture.homeTeam.humanPlayer);
+  player.position.x = 100;
+  player.position.y = 100;
+  player.velocity.x = 20;
+  player.velocity.y = 0;
+  fixture.ball.placeAt(new Vector2d(104, 100));
+  fixture.game.resumeFromInput(null);
+
+  advancePhysics(fixture, 0);
+
+  var kickoffVelocity = fixture.ball.velocity.x;
+  assertTrue(kickoffVelocity > 0);
+
+  fixture.ball.placeAt(new Vector2d(104, 100));
+  advancePhysics(fixture, 0);
+
+  assertNear(
+    kickoffVelocity / fixture.ball.velocity.x,
+    fixture.config.restarts.kickoffImpulseMultiplier,
+    0.0001,
+  );
 });
 
 test("Kickoff scene exposes the dedicated first striker as taker", function () {

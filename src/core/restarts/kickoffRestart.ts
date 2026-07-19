@@ -59,6 +59,19 @@ class KickoffRestart extends BaseRestartStrategy {
     };
   }
 
+  public resume(
+    context: GameContext,
+    request: RestartRequest,
+    direction: Vector2 | null,
+  ): boolean {
+    assertRestartType(request, "kickoff");
+    void direction;
+    context.ball.scaleNextKickImpulse(
+      this.config.restarts.kickoffImpulseMultiplier,
+    );
+    return true;
+  }
+
   private applyPositioningRules(
     positions: Vector2[],
     side: TeamSide,
