@@ -420,6 +420,30 @@ test("Away throw-in chooses an automatic inward attacking direction", function (
   assertEqual(fixture.ball.lastTouchedBy, "away");
 });
 
+test("Away throw-in near the attacking goal line stays in bounds", function () {
+  var fixture = makeFixture();
+  fixture.config.restarts.opponentDelaySeconds = 0;
+  fixture.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "away",
+    boundary: "right",
+    position: new Vector2d(
+      fixture.config.pitch.fieldRight,
+      fixture.config.pitch.fieldBottom - 5,
+    ),
+  });
+  fixture.positioningController.updateBeforePhysics(fixture.game.context());
+  completePositioning(fixture);
+
+  fixture.restartController.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+
+  assertTrue(fixture.ball.velocity.x < 0);
+  assertEqual(fixture.ball.velocity.y, 0);
+});
+
 test("Set-piece positioning keeps opponents outside the restart distance", function () {
   var fixture = makeFixture({ homeTeamSize: 4, awayTeamSize: 4 });
   fixture.game.beginRestart({

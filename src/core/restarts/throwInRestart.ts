@@ -89,18 +89,26 @@ class ThrowInRestart extends BaseRestartStrategy {
     assertRestartType(request, "throwIn");
     const inwardX = request.boundary == "left" ? 1 : -1;
     const attackY = request.awardedTo == "home" ? -1 : 1;
+    const heldPosition = context.ball.heldPosition();
     let dx: number;
     let dy: number;
     if (request.awardedTo == "away" || direction == null) {
       dx = inwardX;
-      dy = attackY;
+      const attackingGoalLine =
+        attackY < 0
+          ? this.config.pitch.fieldTop
+          : this.config.pitch.fieldBottom;
+      const attackingSpace = Math.abs(attackingGoalLine - heldPosition.y);
+      dy =
+        attackingSpace < this.config.restarts.throwInGoalLineSafetyDistance
+          ? 0
+          : attackY;
     } else {
       dx = direction.x;
       dy = direction.y;
       if (dx * inwardX < 0.35) dx = inwardX * 0.35;
     }
     const normalized = MathLib.normalizeVector(dx, dy, inwardX, attackY);
-    const heldPosition = context.ball.heldPosition();
     context.ball.position.x = heldPosition.x;
     context.ball.position.y = heldPosition.y;
     context.ball.position.z = 0;
