@@ -495,6 +495,9 @@ test("Throw-in uses fresh directional input to launch a lofted inward throw", fu
     ),
   });
   fixture.positioningController.updateBeforePhysics(fixture.game.context());
+  var restartBallPosition = required(
+    fixture.positioningController.ballPosition(),
+  );
   completePositioning(fixture);
 
   var taker = fixture.ball.heldBy;
@@ -504,6 +507,8 @@ test("Throw-in uses fresh directional input to launch a lofted inward throw", fu
   assertEqual(taker.facingY, 0);
   assertTrue(heldPosition.x > taker.position.x);
   assertTrue(heldPosition.y < taker.position.y);
+  assertEqual(heldPosition.x, restartBallPosition.x);
+  assertEqual(heldPosition.y, restartBallPosition.y);
 
   fixture.game.resumeFromInput(new Vector2d(-1, 0));
 

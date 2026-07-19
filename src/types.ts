@@ -117,5 +117,9 @@ export interface RestartStrategy {
     request: RestartRequest,
     direction: Vector2 | null,
   ): boolean;
+  keyboardDirection?(
+    request: RestartRequest,
+    direction: Vector2,
+  ): Vector2 | null;
   attackTarget?(side: TeamSide, request: RestartRequest): Vector2 | null;
 }

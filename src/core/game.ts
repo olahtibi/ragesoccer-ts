@@ -101,6 +101,10 @@ class Game {
     return this.matchFlow.resumeFromInput(this.context(), direction);
   }
 
+  public resumeFromKeyboardInput(direction: Vector2): boolean {
+    return this.matchFlow.resumeFromKeyboardInput(this.context(), direction);
+  }
+
   public beginRestart(request: RestartRequest): boolean {
     return this.matchFlow.beginRestart(request, this.context());
   }

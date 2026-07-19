@@ -191,6 +191,24 @@ class RestartController {
     return this.resume(context, direction);
   }
 
+  public resumeFromKeyboardInput(
+    context: GameContext,
+    direction: Vector2,
+  ): boolean {
+    if (!this.canResumeFromInput() || this.session == null) return false;
+    const keyboardDirection = this.session.strategy.keyboardDirection;
+    const mappedDirection =
+      keyboardDirection == null
+        ? direction
+        : keyboardDirection.call(
+            this.session.strategy,
+            this.session.request,
+            direction,
+          );
+    if (mappedDirection == null) return false;
+    return this.resume(context, mappedDirection);
+  }
+
   public simulationMode(): SimulationMode {
     if (this.session == null) return "full";
     if (
@@ -332,7 +350,19 @@ class RestartController {
     if (this.session.strategy.allowEarlyResume != true) return false;
     if (!this.canResume()) return false;
     if (context.humanController.hasMovementInput()) {
-      return this.resume(context, context.humanController.inputDirection());
+      const direction = context.humanController.inputDirection();
+      if (direction == null) return false;
+      const keyboardDirection = this.session.strategy.keyboardDirection;
+      const mappedDirection =
+        keyboardDirection == null
+          ? direction
+          : keyboardDirection.call(
+              this.session.strategy,
+              this.session.request,
+              direction,
+            );
+      if (mappedDirection == null) return false;
+      return this.resume(context, mappedDirection);
     }
     return false;
   }

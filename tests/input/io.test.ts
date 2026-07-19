@@ -154,7 +154,7 @@ test("Opponent kickoff ignores input and starts after its configured delay", fun
   assertEqual(setupResult.restartController.phase(), "inProgress");
 });
 
-test("Keyboard direction executes a human throw-in and clamps it inward", function () {
+test("Keyboard outward direction does not execute a human throw-in", function () {
   var setupResult = setup();
   setupResult.game.beginRestart({
     type: "throwIn",
@@ -169,9 +169,79 @@ test("Keyboard direction executes a human throw-in and clamps it inward", functi
 
   setupResult.input.handleKey({ keyCode: 37, type: "keydown" });
 
+  assertEqual(setupResult.restartController.phase(), "waitingForInput");
+  assertTrue(setupResult.fixture.ball.heldBy !== null);
+  assertEqual(setupResult.fixture.ball.velocity.x, 0);
+});
+
+test("Keyboard inward direction throws straight across the field", function () {
+  var setupResult = setup();
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "left",
+    position: new Vector2d(
+      setupResult.fixture.config.pitch.fieldLeft,
+      setupResult.fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(setupResult.fixture);
+
+  setupResult.input.handleKey({ keyCode: 39, type: "keydown" });
+
   assertEqual(setupResult.restartController.phase(), "inProgress");
   assertTrue(setupResult.fixture.ball.velocity.x > 0);
-  assertTrue(setupResult.fixture.ball.velocity.z > 0);
+  assertEqual(setupResult.fixture.ball.velocity.y, 0);
+});
+
+test("Keyboard up direction throws diagonally up and inward", function () {
+  var setupResult = setup();
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "left",
+    position: new Vector2d(
+      setupResult.fixture.config.pitch.fieldLeft,
+      setupResult.fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(setupResult.fixture);
+
+  setupResult.input.handleKey({ keyCode: 38, type: "keydown" });
+
+  assertTrue(setupResult.fixture.ball.velocity.x > 0);
+  assertTrue(setupResult.fixture.ball.velocity.y < 0);
+  assertNear(
+    Math.abs(setupResult.fixture.ball.velocity.x),
+    Math.abs(setupResult.fixture.ball.velocity.y),
+    0.0001,
+  );
+  assertEqual(setupResult.fixture.boundaryDetector.update(), null);
+});
+
+test("Keyboard down direction throws diagonally down and inward", function () {
+  var setupResult = setup();
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "right",
+    position: new Vector2d(
+      setupResult.fixture.config.pitch.fieldRight,
+      setupResult.fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(setupResult.fixture);
+
+  setupResult.input.handleKey({ keyCode: 40, type: "keydown" });
+
+  assertTrue(setupResult.fixture.ball.velocity.x < 0);
+  assertTrue(setupResult.fixture.ball.velocity.y > 0);
+  assertNear(
+    Math.abs(setupResult.fixture.ball.velocity.x),
+    Math.abs(setupResult.fixture.ball.velocity.y),
+    0.0001,
+  );
+  assertEqual(setupResult.fixture.boundaryDetector.update(), null);
 });
 
 test("Touch direction executes a human throw-in and clamps it inward", function () {

@@ -47,14 +47,9 @@ class ThrowInRestart extends BaseRestartStrategy {
     assertRestartType(request, "throwIn");
     this.launched = false;
     const ballPosition = this.ballPosition(request);
-    const offset =
-      this.config.player.radius +
-      this.config.ball.radius +
-      this.config.restarts.takerClearance;
-    const takerX =
-      request.boundary == "left"
-        ? this.config.pitch.fieldLeft - offset
-        : this.config.pitch.fieldRight + offset;
+    const facingX = request.boundary == "left" ? 1 : -1;
+    const takerX = ballPosition.x - facingX * this.config.ball.heldOffsetX;
+    const takerY = ballPosition.y - this.config.ball.heldOffsetY;
     this.taker = this.findTaker(context, request, ballPosition);
     this.receiver = this.findReceiver(context, request, ballPosition);
     context.ball.heldBy = this.taker;
@@ -67,7 +62,7 @@ class ThrowInRestart extends BaseRestartStrategy {
       context,
       request,
       ballPosition,
-      new Vector2d(takerX, ballPosition.y),
+      new Vector2d(takerX, takerY),
       takerIndex,
     );
     if (this.receiver != null) {
@@ -150,6 +145,19 @@ class ThrowInRestart extends BaseRestartStrategy {
     if (this.taker == null) return;
     this.taker.facingX = request.boundary == "left" ? 1 : -1;
     this.taker.facingY = 0;
+  }
+
+  public keyboardDirection(
+    request: RestartRequest,
+    direction: Vector2,
+  ): Vector2 | null {
+    assertRestartType(request, "throwIn");
+    const inwardX = request.boundary == "left" ? 1 : -1;
+    if (Math.abs(direction.y) > this.config.physics.zeroDistanceEpsilon) {
+      return new Vector2d(inwardX, direction.y < 0 ? -1 : 1);
+    }
+    if (direction.x * inwardX <= 0) return null;
+    return new Vector2d(inwardX, 0);
   }
 
   public resume(

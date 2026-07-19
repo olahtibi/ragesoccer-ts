@@ -60,7 +60,8 @@ class BrowserInput {
     this.game.humanController.setKey(event.keyCode, event.type == "keydown");
     if (event.type == "keydown") this.handleCommand(event.keyCode);
     if (this.game.humanController.hasMovementInput()) {
-      this.game.resumeFromInput(this.game.humanController.inputDirection());
+      const direction = this.game.humanController.inputDirection();
+      if (direction != null) this.game.resumeFromKeyboardInput(direction);
     }
     this.applyHumanInput();
   }

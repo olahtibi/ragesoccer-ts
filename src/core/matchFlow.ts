@@ -82,6 +82,16 @@ class MatchFlow {
     return this.session.kind == "normalPlay";
   }
 
+  public resumeFromKeyboardInput(
+    context: GameContext,
+    direction: Vector2,
+  ): boolean {
+    if (this.session.kind == "restart") {
+      return this.restartController.resumeFromKeyboardInput(context, direction);
+    }
+    return this.session.kind == "normalPlay";
+  }
+
   public simulationMode(): SimulationMode {
     if (this.session.kind == "paused") return "none";
     if (this.session.kind == "normalPlay") return "full";

@@ -201,7 +201,7 @@ export class Configuration {
     throwInSpeed: 80,
     throwInLoft: 90,
     throwInGoalLineSafetyDistance: 75,
-    throwInReceiverDistance: 35,
+    throwInReceiverDistance: 40,
     takerClearance: 2,
   };
 
