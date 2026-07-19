@@ -160,6 +160,18 @@ test("TeamAi assigns attackBall to the closest away player", function () {
   assertEqual(attackBallIndex(fixture.awayTeamAi), 1);
 });
 
+test("TeamAi prioritizes an intended receiver over the closer thrower", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 3 });
+  fixture.ball.position.x = fixture.awayPlayers[2].position.x;
+  fixture.ball.position.y = fixture.awayPlayers[2].position.y;
+  fixture.ball.intendedReceiver = fixture.awayPlayers[1];
+
+  update(fixture.awayTeamAi, false, true);
+
+  assertEqual(attackBallIndex(fixture.awayTeamAi), 1);
+  assertEqual(fixture.awayTeamAi.debugSnapshot()[2].command, "moveToPosition");
+});
+
 test("TeamAi goalkeepers follow the ball across their goal line", function () {
   var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 3 });
   fixture.homeTeam.humanPlayer = fixture.homePlayers[1];

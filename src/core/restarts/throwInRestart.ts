@@ -1,3 +1,4 @@
+import { Formation } from "../../ai/formation";
 import { math as MathLib } from "../../math/math";
 import { Vector2 as Vector2d, Vector3 as Vector3d } from "../../math/vector";
 import type { Vector2 } from "../../math/vector";
@@ -12,12 +13,14 @@ class ThrowInRestart extends BaseRestartStrategy {
   public readonly allowEarlyResume: boolean;
   public launched: boolean;
   public taker: Player | null;
+  private receiver: Player | null;
 
   public constructor(config: Configuration) {
     super(config);
     this.allowEarlyResume = true;
     this.launched = false;
     this.taker = null;
+    this.receiver = null;
   }
 
   private ballPosition(request: RestartRequest): Vector3d {
@@ -53,14 +56,29 @@ class ThrowInRestart extends BaseRestartStrategy {
         ? this.config.pitch.fieldLeft - offset
         : this.config.pitch.fieldRight + offset;
     this.taker = this.findTaker(context, request, ballPosition);
+    this.receiver = this.findReceiver(context, request, ballPosition);
     context.ball.heldBy = this.taker;
-    return RestartPositioning.createScene(
+    const takerIndex =
+      this.taker == null
+        ? null
+        : context.teams[request.awardedTo].players.indexOf(this.taker);
+    const scene = RestartPositioning.createScene(
       this.config,
       context,
       request,
       ballPosition,
       new Vector2d(takerX, ballPosition.y),
+      takerIndex,
     );
+    if (this.receiver != null) {
+      const target = this.receiverTarget(request, ballPosition);
+      const placement = scene.placements[request.awardedTo].find(
+        (candidate) => candidate.player === this.receiver,
+      );
+      if (placement != null) placement.target = target;
+      scene.additionalReadyPlayers = [this.receiver];
+    }
+    return scene;
   }
 
   private findTaker(
@@ -72,6 +90,57 @@ class ThrowInRestart extends BaseRestartStrategy {
     return team.players[
       RestartPositioning.closestPlayerIndex(team.players, ballPosition)
     ];
+  }
+
+  private findReceiver(
+    context: GameContext,
+    request: RestartRequest,
+    ballPosition: Vector2,
+  ): Player | null {
+    const players = context.teams[request.awardedTo].players;
+    const roles = new Formation(this.config).rolesForSize(players.length);
+    let receiver: Player | null = null;
+    let closestDistance = Infinity;
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      if (player === this.taker || roles[i] == "goalie") continue;
+      const distance = MathLib.computeDistance(player.position, ballPosition);
+      if (distance < closestDistance) {
+        receiver = player;
+        closestDistance = distance;
+      }
+    }
+    return receiver;
+  }
+
+  private receiverTarget(
+    request: RestartRequest,
+    ballPosition: Vector2,
+  ): Vector2 {
+    assertRestartType(request, "throwIn");
+    const inwardX = request.boundary == "left" ? 1 : -1;
+    const attackY = request.awardedTo == "home" ? -1 : 1;
+    const attackingGoalLine =
+      attackY < 0 ? this.config.pitch.fieldTop : this.config.pitch.fieldBottom;
+    const attackingSpace = Math.abs(attackingGoalLine - ballPosition.y);
+    const receiverY =
+      attackingSpace < this.config.restarts.throwInGoalLineSafetyDistance
+        ? -attackY
+        : attackY;
+    const direction = MathLib.normalizeVector(
+      inwardX,
+      receiverY,
+      inwardX,
+      receiverY,
+    );
+    const distance = this.config.restarts.throwInReceiverDistance;
+    return RestartPositioning.clampToPlayingField(
+      this.config,
+      new Vector2d(
+        ballPosition.x + direction.x * distance,
+        ballPosition.y + direction.y * distance,
+      ),
+    );
   }
 
   public onPositioned(context: GameContext, request: RestartRequest): void {
@@ -92,7 +161,10 @@ class ThrowInRestart extends BaseRestartStrategy {
     const heldPosition = context.ball.heldPosition();
     let dx: number;
     let dy: number;
-    if (request.awardedTo == "away" || direction == null) {
+    if (request.awardedTo == "away" && this.receiver != null) {
+      dx = this.receiver.position.x - heldPosition.x;
+      dy = this.receiver.position.y - heldPosition.y;
+    } else if (request.awardedTo == "away" || direction == null) {
       dx = inwardX;
       const attackingGoalLine =
         attackY < 0
@@ -118,6 +190,7 @@ class ThrowInRestart extends BaseRestartStrategy {
     context.ball.velocity.z = this.config.restarts.throwInLoft;
     context.ball.lastTouchedBy = request.awardedTo;
     context.ball.lastTouchedPlayer = this.taker;
+    context.ball.intendedReceiver = this.receiver;
     this.launched = true;
     return true;
   }

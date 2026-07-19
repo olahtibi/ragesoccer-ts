@@ -73,6 +73,10 @@ class HumanController {
       return preferredPlayer;
     }
 
+    if (this.ball.intendedReceiver?.teamSide == this.team.side) {
+      return this.selectPlayer(this.ball.intendedReceiver);
+    }
+
     const closest = this.closestPlayerToBall();
     const current = this.team.humanPlayer;
     if (closest == null) return current;

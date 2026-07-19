@@ -135,6 +135,7 @@ test("Physics ball-player contact kicks the ball outward", function () {
   fixture.ball.position.x = 104;
   fixture.ball.position.y = 100;
   fixture.ball.position.z = 0;
+  fixture.ball.intendedReceiver = fixture.playerAway;
 
   advancePhysics(fixture, 0);
 
@@ -143,6 +144,7 @@ test("Physics ball-player contact kicks the ball outward", function () {
   assertNear(fixture.ball.position.x, 106.01, 0.0001);
   assertEqual(fixture.ball.lastTouchedBy, "home");
   assertTrue(fixture.ball.lastTouchedPlayer === fixture.playerHome);
+  assertEqual(fixture.ball.intendedReceiver, null);
 });
 
 test("Disabled out-of-play restarts preserve reflective pitch boundaries", function () {

@@ -96,6 +96,7 @@ export interface RestartScene {
   ballPosition: Vector2 & { z?: number };
   placements: RestartPlacements;
   readyPlayer: Player | null;
+  additionalReadyPlayers?: Player[];
 }
 
 export interface PositioningOptions extends RestartScene {

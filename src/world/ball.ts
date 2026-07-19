@@ -13,6 +13,7 @@ class Ball {
   public phaseIndex: number;
   public lastTouchedBy: TeamSide | null;
   public lastTouchedPlayer: Player | null;
+  public intendedReceiver: Player | null;
   public heldBy: Player | null;
   public rollDistance: number;
   private readonly spinPxPerPhase: number;
@@ -36,6 +37,7 @@ class Ball {
     this.phaseIndex = 0;
     this.lastTouchedBy = null;
     this.lastTouchedPlayer = null;
+    this.intendedReceiver = null;
     this.heldBy = null;
     // Accumulated distance rolled since the last sprite phase change.
     this.rollDistance = 0;
@@ -60,6 +62,7 @@ class Ball {
     this.position.y = position.y;
     this.position.z = position.z ?? 0;
     this.stop();
+    this.intendedReceiver = null;
     this.nextKickImpulseMultiplier = 1;
   }
 

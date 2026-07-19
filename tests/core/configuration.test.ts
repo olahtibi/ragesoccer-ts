@@ -38,6 +38,8 @@ test("Configuration defaults strength and team-size options", function () {
   assertEqual(config.restarts.cornerBoxSpacing, 34);
   assertEqual(config.restarts.cornerBoxDepth, 45);
   assertEqual(config.restarts.cornerLateRunReleaseDistance, 35);
+  assertEqual(config.restarts.throwInSpeed, 80);
+  assertEqual(config.restarts.throwInReceiverDistance, 35);
   assertEqual("playerStrength" in config, false);
   assertEqual("fieldLeft" in config, false);
   assertEqual("ballRadius" in config, false);

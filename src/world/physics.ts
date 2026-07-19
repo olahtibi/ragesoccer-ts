@@ -120,6 +120,7 @@ class Physics {
       }
       ball.lastTouchedBy = p.teamSide;
       ball.lastTouchedPlayer = p;
+      ball.intendedReceiver = null;
       // Contact normal (unit vector from player toward ball).
       const d = Math.sqrt(d2);
       let nx: number;

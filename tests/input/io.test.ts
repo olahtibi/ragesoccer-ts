@@ -74,6 +74,18 @@ test("Human selection switches and stops the old player outside hysteresis", fun
   assertEqual(fixture.homePlayers[0].velocity.x, 0);
 });
 
+test("Human selection prioritizes an intended pass receiver", function () {
+  var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 1 });
+  fixture.game.humanController.selectPlayer(fixture.homePlayers[0]);
+  fixture.ball.position.x = fixture.homePlayers[0].position.x;
+  fixture.ball.position.y = fixture.homePlayers[0].position.y;
+  fixture.ball.intendedReceiver = fixture.homePlayers[1];
+
+  fixture.game.humanController.selectPlayer();
+
+  assertTrue(fixture.homeTeam.humanPlayer === fixture.homePlayers[1]);
+});
+
 test("Keyboard diagonal input normalizes velocity", function () {
   var setupResult = setup({ playerStrength: 10 });
   setupResult.input.handleKey({ keyCode: 39, type: "keydown" });
@@ -187,7 +199,7 @@ test("Touch direction executes a human throw-in and clamps it inward", function 
   assertTrue(setupResult.fixture.ball.velocity.x < 0);
 });
 
-test("Touch executes a throw-in when the taker is ready before positioning completes", function () {
+test("Touch waits for the throw-in taker and receiver before executing", function () {
   var setupResult = setup({ homeTeamSize: 4, awayTeamSize: 4 });
   setupResult.game.beginRestart({
     type: "throwIn",
@@ -202,15 +214,37 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
   var readyPlayer = controller.readyPlayer();
   var placements = controller.placements();
   assertTrue(readyPlayer !== null && placements !== null);
+  var receiverPlacement = null;
+  var closestReceiverDistance = Infinity;
+  var ballPosition = controller.ballPosition();
+  assertTrue(ballPosition !== null);
   for (const side of ["home", "away"] as const) {
     for (const placement of placements[side]) {
       if (placement.player === readyPlayer) {
         readyPlayer.placeAt(placement.target);
+      } else if (side == "home") {
+        var dx = placement.target.x - ballPosition.x;
+        var dy = placement.target.y - ballPosition.y;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < closestReceiverDistance) {
+          receiverPlacement = placement;
+          closestReceiverDistance = distance;
+        }
       }
     }
   }
   var scale = setupResult.fixture.config.computeScaleBy();
 
+  setupResult.input.handleTouch(
+    touchEventAt(
+      (setupResult.fixture.config.pitch.fieldRight + 100) * scale,
+      setupResult.fixture.config.pitch.aiCenterY * scale,
+    ),
+  );
+
+  assertEqual(setupResult.restartController.phase(), "positioning");
+  assertTrue(receiverPlacement !== null);
+  receiverPlacement.player.placeAt(receiverPlacement.target);
   setupResult.input.handleTouch(
     touchEventAt(
       (setupResult.fixture.config.pitch.fieldRight + 100) * scale,

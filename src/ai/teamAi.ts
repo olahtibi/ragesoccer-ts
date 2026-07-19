@@ -117,13 +117,18 @@ class TeamAi {
       openPlayFormation,
     );
     const chasingCornerCross = this.state == "cornerUs" && !restartActive;
+    const intendedReceiver =
+      this.ball.intendedReceiver?.teamSide == this.team.side
+        ? this.ball.intendedReceiver
+        : null;
     const closest = chasingCornerCross
       ? this.team.side == "home"
         ? this.team.humanPlayer
         : null
       : this.team.side == "home"
         ? this.team.humanPlayer
-        : (context.restart != null ? context.restart.taker : null) ||
+        : intendedReceiver ||
+          (context.restart != null ? context.restart.taker : null) ||
           this.attackerSelector.select();
     const commandContext = {
       ball: this.ball,

@@ -174,6 +174,7 @@ export class Configuration {
     throwInSpeed: number;
     throwInLoft: number;
     throwInGoalLineSafetyDistance: number;
+    throwInReceiverDistance: number;
     takerClearance: number;
   } = {
     kickoffSide: "home",
@@ -197,9 +198,10 @@ export class Configuration {
     cornerShortInset: 50,
     cornerShortDepth: 35,
     cornerLateRunReleaseDistance: 35,
-    throwInSpeed: 180,
+    throwInSpeed: 80,
     throwInLoft: 90,
     throwInGoalLineSafetyDistance: 75,
+    throwInReceiverDistance: 35,
     takerClearance: 2,
   };
 

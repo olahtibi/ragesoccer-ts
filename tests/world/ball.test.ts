@@ -7,6 +7,7 @@ test("Ball placement resets all velocity components", function () {
   fixture.ball.velocity.x = 1;
   fixture.ball.velocity.y = 2;
   fixture.ball.velocity.z = 3;
+  fixture.ball.intendedReceiver = fixture.playerHome;
 
   fixture.ball.placeAt(new Vector3(10, 20, 0));
 
@@ -15,6 +16,7 @@ test("Ball placement resets all velocity components", function () {
   assertEqual(fixture.ball.velocity.x, 0);
   assertEqual(fixture.ball.velocity.y, 0);
   assertEqual(fixture.ball.velocity.z, 0);
+  assertEqual(fixture.ball.intendedReceiver, null);
 });
 
 function drawingContext(): CanvasRenderingContext2D {
