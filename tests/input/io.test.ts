@@ -21,6 +21,21 @@ function setup(options: FixtureOptions = {}) {
   };
 }
 
+test("Arrow keys prevent browser scrolling", function () {
+  var setupResult = setup();
+  var defaultPrevented = false;
+
+  setupResult.input.handleKey({
+    keyCode: 40,
+    type: "keydown",
+    preventDefault: function () {
+      defaultPrevented = true;
+    },
+  });
+
+  assertTrue(defaultPrevented);
+});
+
 test("Keyboard input selects and controls the player closest to the ball", function () {
   var setupResult = setup({
     homeTeamSize: 2,

@@ -55,7 +55,15 @@ class BrowserInput {
     this.applyHumanInput();
   }
 
-  public handleKey(event: Pick<KeyboardEvent, "keyCode" | "type">): void {
+  public handleKey(
+    event: Pick<KeyboardEvent, "keyCode" | "type"> &
+      Partial<Pick<KeyboardEvent, "preventDefault">>,
+  ): void {
+    if (
+      Object.values(ARROW_KEYS).includes(event.keyCode as 37 | 38 | 39 | 40)
+    ) {
+      event.preventDefault?.();
+    }
     this.game.debugTool.recordKeyEvent(event);
     this.game.humanController.setKey(event.keyCode, event.type == "keydown");
     if (event.type == "keydown") this.handleCommand(event.keyCode);
