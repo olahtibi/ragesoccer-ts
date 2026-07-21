@@ -207,7 +207,7 @@ test("A home goal kickoff waits for fresh input after positioning", function () 
   assertEqual(fixture.game.matchFlow.simulationMode(), "none");
 });
 
-test("Goal celebration follows the scorer and moves only the scoring team", function () {
+test("Goal celebration follows the scorer and moves both teams to kickoff", function () {
   var fixture = makeFixture({ homeTeamSize: 5, awayTeamSize: 5 });
   fixture.game.matchFlow.enterNormalPlayForTesting();
   var scorer = fixture.homePlayers[1];
@@ -215,7 +215,8 @@ test("Goal celebration follows the scorer and moves only the scoring team", func
   fixture.ball.lastTouchedPlayer = scorer;
   fixture.ball.position.x = 336;
   fixture.ball.position.y = 100;
-  fixture.playerAway.velocity.x = 20;
+  fixture.awayPlayers[1].position.x = 100;
+  fixture.awayPlayers[1].position.y = 100;
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
 
@@ -224,9 +225,13 @@ test("Goal celebration follows the scorer and moves only the scoring team", func
   assertEqual(fixture.game.camera.focusTarget?.x, 336);
   assertEqual(fixture.game.camera.focusTarget?.y, 101.5);
   assertEqual(fixture.game.resumeFromInput(null), false);
-  assertEqual(fixture.playerAway.velocity.x, 0);
   assertTrue(
     fixture.homePlayers.some(function (player) {
+      return player.velocity.x != 0 || player.velocity.y != 0;
+    }),
+  );
+  assertTrue(
+    fixture.awayPlayers.some(function (player) {
       return player.velocity.x != 0 || player.velocity.y != 0;
     }),
   );

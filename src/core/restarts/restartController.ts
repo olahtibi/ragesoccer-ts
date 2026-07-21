@@ -395,8 +395,10 @@ class RestartController {
         ? celebration.goalFocusTarget
         : celebration.scorer.position,
     );
-    for (const placement of this.session.placements[celebration.scoringSide]) {
-      this.movePlayerToTarget(context, placement.player, placement.target);
+    for (const side of ["home", "away"] as const) {
+      for (const placement of this.session.placements[side]) {
+        this.movePlayerToTarget(context, placement.player, placement.target);
+      }
     }
   }
 
