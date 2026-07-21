@@ -50,7 +50,7 @@ test("Formation uses relative kickoff states for both teams", function () {
   var home = formation.positions("kickoffUs", "home", 3);
   var away = formation.positions("kickoffOpponent", "away", 3);
 
-  assertTrue(home[2].y > config.pitch.aiCenterY);
+  assertTrue(home[2].y < config.pitch.aiCenterY);
   assertTrue(Math.abs(home[2].y - config.pitch.aiCenterY) <= 25);
   assertTrue(away[2].y < config.pitch.aiCenterY);
   assertTrue(outsideCenterEllipse(config, away[2]));
@@ -63,7 +63,7 @@ test("Formation mirrors relative states for an away kickoff", function () {
   var home = formation.positions("kickoffOpponent", "home", 3);
   var away = formation.positions("kickoffUs", "away", 3);
 
-  assertTrue(away[2].y < config.pitch.aiCenterY);
+  assertTrue(away[2].y > config.pitch.aiCenterY);
   assertTrue(Math.abs(away[2].y - config.pitch.aiCenterY) <= 25);
   assertTrue(home[2].y > config.pitch.aiCenterY);
   assertTrue(outsideCenterEllipse(config, home[2]));
@@ -79,12 +79,12 @@ test("Formation gives one 5v5 striker a dedicated close kickoff position", funct
   assertEqual(home[3].x, config.pitch.initialBallPosition.x);
   assertEqual(
     home[3].y,
-    config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
+    config.pitch.aiCenterY - config.restarts.kickoffTakerDistance,
   );
   assertEqual(away[3].x, config.pitch.initialBallPosition.x);
   assertEqual(
     away[3].y,
-    config.pitch.aiCenterY - config.restarts.kickoffTakerDistance,
+    config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
   );
 
   assertEqual(home[4].x, config.pitch.initialBallPosition.x + 45);
@@ -161,7 +161,7 @@ test("Formation keeps 11-player kickoff midfielders outside the center ellipse",
   assertEqual(kicking[9].x, config.pitch.initialBallPosition.x);
   assertEqual(
     kicking[9].y,
-    config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
+    config.pitch.aiCenterY - config.restarts.kickoffTakerDistance,
   );
 });
 

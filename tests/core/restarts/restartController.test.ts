@@ -475,6 +475,7 @@ test("Away kickoff aims its opening pass backward", function () {
   assertEqual(fixture.restartController.attackTarget("home"), null);
 
   var taker = required(fixture.restartController.taker("away"));
+  assertTrue(taker.position.y > fixture.config.pitch.aiCenterY);
   taker.position.x = fixture.ball.position.x;
   taker.position.y = fixture.ball.position.y + 4;
   updateTeamAis(fixture);
