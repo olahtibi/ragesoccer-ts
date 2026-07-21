@@ -39,8 +39,6 @@ export class Configuration {
     width: number;
     height: number;
     ratio: number;
-    overlayMinRatio: number;
-    overlayMaxRatio: number;
   };
 
   readonly physics = {
@@ -104,7 +102,7 @@ export class Configuration {
 
   readonly ai = {
     enabled: true,
-    goalieDistance: 30,
+    goalieDistance: 3,
     formationDefenderProgress: -200,
     formationMidfielderProgress: 0,
     formationStrikerProgress: 130,
@@ -152,6 +150,7 @@ export class Configuration {
   readonly restarts: {
     kickoffSide: TeamSide;
     kickoffTakerDistance: number;
+    kickoffImpulseMultiplier: number;
     outOfPlayEnabled: boolean;
     outOfPlayDelaySeconds: number;
     opponentDelaySeconds: number;
@@ -172,10 +171,13 @@ export class Configuration {
     cornerLateRunReleaseDistance: number;
     throwInSpeed: number;
     throwInLoft: number;
+    throwInGoalLineSafetyDistance: number;
+    throwInReceiverDistance: number;
     takerClearance: number;
   } = {
     kickoffSide: "home",
     kickoffTakerDistance: 8,
+    kickoffImpulseMultiplier: 0.5,
     outOfPlayEnabled: true,
     outOfPlayDelaySeconds: 0.35,
     opponentDelaySeconds: 1,
@@ -194,8 +196,10 @@ export class Configuration {
     cornerShortInset: 50,
     cornerShortDepth: 35,
     cornerLateRunReleaseDistance: 35,
-    throwInSpeed: 180,
+    throwInSpeed: 80,
     throwInLoft: 90,
+    throwInGoalLineSafetyDistance: 75,
+    throwInReceiverDistance: 40,
     takerClearance: 2,
   };
 
@@ -203,6 +207,8 @@ export class Configuration {
     arrivedRadius: 3,
     cameraArrivedRadius: 2,
     cameraLerp: 0.06,
+    goalCelebrationSeconds: 5,
+    goalFocusSeconds: 1,
   };
   readonly input = { humanSwitchHysteresisDistance: 20 };
   readonly debug = { enabled: true, logSeconds: 3, logEveryNFrames: 4 };
@@ -215,8 +221,6 @@ export class Configuration {
       width: options.width ?? window.innerWidth,
       height: options.height ?? window.innerHeight,
       ratio: 0.7,
-      overlayMinRatio: 0.6,
-      overlayMaxRatio: 0.8,
     };
     this.applyQueryOptions(options.search ?? window.location.search);
   }

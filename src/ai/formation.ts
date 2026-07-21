@@ -162,7 +162,7 @@ class Formation {
       progress =
         side == kickingSide
           ? kickoffTaker
-            ? -this.config.restarts.kickoffTakerDistance
+            ? this.config.restarts.kickoffTakerDistance
             : -this.config.ai.formationFallbackDepth
           : this.nonKickingStrikerProgress(index, count);
     } else if (kickingSide != null && role == "midfielder") {

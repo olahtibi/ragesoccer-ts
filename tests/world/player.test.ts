@@ -71,6 +71,26 @@ test("Player updateFacing preserves facing at zero velocity", function () {
   assertEqual(player.facingY, 0);
 });
 
+test("Player facing target overrides its movement direction", function () {
+  var fixture = makeFixture();
+  var player = fixture.playerHome;
+  player.position.x = 100;
+  player.position.y = 100;
+  player.velocity.x = 10;
+  player.velocity.y = 0;
+  player.faceTowards(new Vector2(100, 50));
+
+  player.updateFacing();
+
+  assertEqual(player.facingX, 0);
+  assertEqual(player.facingY, -1);
+
+  player.faceTowards(null);
+  player.updateFacing();
+  assertEqual(player.facingX, 1);
+  assertEqual(player.facingY, 0);
+});
+
 test("Player spriteFrame uses neutral phase while standing without resetting walk state", function () {
   var fixture = makeFixture();
   var player = fixture.playerHome;

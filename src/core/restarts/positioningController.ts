@@ -27,17 +27,23 @@ class PositioningController {
   }
 
   public play(options: PositioningOptions): void {
-    let readyPlayerPlaced = options.readyPlayer == null;
+    const readyPlayers = [
+      ...(options.readyPlayer == null ? [] : [options.readyPlayer]),
+      ...(options.additionalReadyPlayers ?? []),
+    ];
+    const placedReadyPlayers = new Set<Player>();
     for (const side of ["home", "away"] as const) {
       for (const placement of options.placements[side]) {
         if (placement.player.teamSide != side) {
           throw new Error(`Invalid ${side} positioning placement`);
         }
-        if (placement.player === options.readyPlayer) readyPlayerPlaced = true;
+        if (readyPlayers.includes(placement.player)) {
+          placedReadyPlayers.add(placement.player);
+        }
       }
     }
-    if (!readyPlayerPlaced) {
-      throw new Error("Ready player has no positioning placement");
+    if (placedReadyPlayers.size != new Set(readyPlayers).size) {
+      throw new Error("Required ready player has no positioning placement");
     }
     const ballPosition = new Vector3d(
       options.ballPosition.x,
@@ -48,6 +54,7 @@ class PositioningController {
       ballPosition,
       placements: options.placements,
       readyPlayer: options.readyPlayer,
+      additionalReadyPlayers: options.additionalReadyPlayers ?? [],
       onComplete: options.onComplete,
     };
     this.stopPlayers();
@@ -67,14 +74,22 @@ class PositioningController {
 
   public isReadyForInput(): boolean {
     if (this.session?.readyPlayer == null) return false;
+    const requiredPlayers = [
+      this.session.readyPlayer,
+      ...this.session.additionalReadyPlayers,
+    ];
+    const arrivedPlayers = new Set<Player>();
     for (const side of ["home", "away"] as const) {
       for (const placement of this.session.placements[side]) {
-        if (placement.player === this.session.readyPlayer) {
-          return this.arrived(placement);
+        if (
+          requiredPlayers.includes(placement.player) &&
+          this.arrived(placement)
+        ) {
+          arrivedPlayers.add(placement.player);
         }
       }
     }
-    return false;
+    return arrivedPlayers.size == new Set(requiredPlayers).size;
   }
 
   public updateBeforePhysics(context: GameContext): void {
@@ -180,5 +195,6 @@ interface PositioningSession {
   ballPosition: Vector3d;
   placements: PositioningOptions["placements"];
   readyPlayer: Player | null;
+  additionalReadyPlayers: Player[];
   onComplete: ((context: GameContext) => void) | null;
 }

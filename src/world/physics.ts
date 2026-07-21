@@ -4,7 +4,8 @@ import type { Configuration } from "../core/configuration";
 import type { Stadium } from "./stadium";
 export { Physics };
 
-export type PhysicsUpdateMode = "full" | "playersOnly" | "ballOnly";
+export type PhysicsUpdateMode =
+  "full" | "playersOnly" | "ballOnly" | "cutscene";
 
 interface CollisionSegment {
   name: string;
@@ -118,6 +119,8 @@ class Physics {
         continue;
       }
       ball.lastTouchedBy = p.teamSide;
+      ball.lastTouchedPlayer = p;
+      ball.intendedReceiver = null;
       // Contact normal (unit vector from player toward ball).
       const d = Math.sqrt(d2);
       let nx: number;
@@ -151,7 +154,7 @@ class Physics {
         this.config.physics.baseKickBoost +
         approach * this.config.physics.playerMomentumTransfer;
 
-      const jTotal = jBounce + jKick;
+      const jTotal = (jBounce + jKick) * ball.consumeKickImpulseMultiplier();
       // Applied along +n (outward from the player).
       ball.velocity.x += nx * jTotal;
       ball.velocity.y += ny * jTotal;

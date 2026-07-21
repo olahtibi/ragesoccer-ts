@@ -12,8 +12,9 @@ export const TEAM_SIDES = ["home", "away"] as const;
 export type TeamSideMap<T> = Record<TeamSide, T>;
 export type RestartType = "kickoff" | "throwIn" | "corner" | "goalKick";
 export type RestartPhase =
-  "positioning" | "waitingForInput" | "inProgress" | "complete";
-export type SimulationMode = "none" | "ballOnly" | "playersOnly" | "full";
+  "celebrating" | "positioning" | "waitingForInput" | "inProgress" | "complete";
+export type SimulationMode =
+  "none" | "ballOnly" | "playersOnly" | "cutscene" | "full";
 export type Boundary = "left" | "right" | "top" | "bottom";
 export type TeamAiState =
   | "kickoffUs"
@@ -95,6 +96,7 @@ export interface RestartScene {
   ballPosition: Vector2 & { z?: number };
   placements: RestartPlacements;
   readyPlayer: Player | null;
+  additionalReadyPlayers?: Player[];
 }
 
 export interface PositioningOptions extends RestartScene {
@@ -115,5 +117,9 @@ export interface RestartStrategy {
     request: RestartRequest,
     direction: Vector2 | null,
   ): boolean;
+  keyboardDirection?(
+    request: RestartRequest,
+    direction: Vector2,
+  ): Vector2 | null;
   attackTarget?(side: TeamSide, request: RestartRequest): Vector2 | null;
 }

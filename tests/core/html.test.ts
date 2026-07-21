@@ -9,6 +9,7 @@ const readFile = (relativePath: string): string =>
 test("Options page loads the typed menu entry and preserves all match options", function () {
   const html = readFile("index.html");
   const menu = readFile("src/menu.ts");
+  const teamCatalog = readFile("src/teamCatalog.ts");
   const styles = readFile("src/styles/menu.css");
 
   assertTrue(html.includes('id="optionsForm"'));
@@ -23,8 +24,11 @@ test("Options page loads the typed menu entry and preserves all match options", 
   ]) {
     assertTrue(menu.includes(id), `Missing option ${id}`);
   }
-  assertTrue(menu.includes('"Red Novices", "Blue Novices"'));
-  assertTrue(menu.includes('"Red Titans", "Blue Titans"'));
+  assertTrue(menu.includes("TEAM_CATALOG"));
+  assertTrue(teamCatalog.includes('home: "Red Novices"'));
+  assertTrue(teamCatalog.includes('away: "Blue Novices"'));
+  assertTrue(teamCatalog.includes('homeShort: "RDT"'));
+  assertTrue(teamCatalog.includes('awayShort: "BLT"'));
   assertTrue(menu.includes("game.html?"));
   assertTrue(styles.includes("@media (max-width: 600px)"));
   assertTrue(styles.includes("prefers-reduced-motion"));

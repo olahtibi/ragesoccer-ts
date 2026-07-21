@@ -1,10 +1,11 @@
 .game-page {
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
   position: relative;
 }
 #myCanvas {
   border: 1px solid #000;
+  display: block;
 }
 .preloaded-asset {
   left: -1000px;

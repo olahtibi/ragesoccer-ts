@@ -33,9 +33,13 @@ test("Configuration defaults strength and team-size options", function () {
   assertNear(config.restarts.outOfPlayDelaySeconds, 0.35, 0.0001);
   assertEqual(config.restarts.opponentDelaySeconds, 1);
   assertNear(config.cutscene.cameraLerp, 0.06, 0.0001);
+  assertEqual(config.cutscene.goalCelebrationSeconds, 5);
+  assertEqual(config.cutscene.goalFocusSeconds, 1);
   assertEqual(config.restarts.cornerBoxSpacing, 34);
   assertEqual(config.restarts.cornerBoxDepth, 45);
   assertEqual(config.restarts.cornerLateRunReleaseDistance, 35);
+  assertEqual(config.restarts.throwInSpeed, 80);
+  assertEqual(config.restarts.throwInReceiverDistance, 40);
   assertEqual("playerStrength" in config, false);
   assertEqual("fieldLeft" in config, false);
   assertEqual("ballRadius" in config, false);

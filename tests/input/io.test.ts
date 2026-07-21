@@ -21,6 +21,21 @@ function setup(options: FixtureOptions = {}) {
   };
 }
 
+test("Arrow keys prevent browser scrolling", function () {
+  var setupResult = setup();
+  var defaultPrevented = false;
+
+  setupResult.input.handleKey({
+    keyCode: 40,
+    type: "keydown",
+    preventDefault: function () {
+      defaultPrevented = true;
+    },
+  });
+
+  assertTrue(defaultPrevented);
+});
+
 test("Keyboard input selects and controls the player closest to the ball", function () {
   var setupResult = setup({
     homeTeamSize: 2,
@@ -72,6 +87,18 @@ test("Human selection switches and stops the old player outside hysteresis", fun
 
   assertTrue(fixture.homeTeam.humanPlayer === fixture.homePlayers[1]);
   assertEqual(fixture.homePlayers[0].velocity.x, 0);
+});
+
+test("Human selection prioritizes an intended pass receiver", function () {
+  var fixture = makeFixture({ homeTeamSize: 2, awayTeamSize: 1 });
+  fixture.game.humanController.selectPlayer(fixture.homePlayers[0]);
+  fixture.ball.position.x = fixture.homePlayers[0].position.x;
+  fixture.ball.position.y = fixture.homePlayers[0].position.y;
+  fixture.ball.intendedReceiver = fixture.homePlayers[1];
+
+  fixture.game.humanController.selectPlayer();
+
+  assertTrue(fixture.homeTeam.humanPlayer === fixture.homePlayers[1]);
 });
 
 test("Keyboard diagonal input normalizes velocity", function () {
@@ -142,7 +169,7 @@ test("Opponent kickoff ignores input and starts after its configured delay", fun
   assertEqual(setupResult.restartController.phase(), "inProgress");
 });
 
-test("Keyboard direction executes a human throw-in and clamps it inward", function () {
+test("Keyboard outward direction does not execute a human throw-in", function () {
   var setupResult = setup();
   setupResult.game.beginRestart({
     type: "throwIn",
@@ -157,9 +184,79 @@ test("Keyboard direction executes a human throw-in and clamps it inward", functi
 
   setupResult.input.handleKey({ keyCode: 37, type: "keydown" });
 
+  assertEqual(setupResult.restartController.phase(), "waitingForInput");
+  assertTrue(setupResult.fixture.ball.heldBy !== null);
+  assertEqual(setupResult.fixture.ball.velocity.x, 0);
+});
+
+test("Keyboard inward direction throws straight across the field", function () {
+  var setupResult = setup();
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "left",
+    position: new Vector2d(
+      setupResult.fixture.config.pitch.fieldLeft,
+      setupResult.fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(setupResult.fixture);
+
+  setupResult.input.handleKey({ keyCode: 39, type: "keydown" });
+
   assertEqual(setupResult.restartController.phase(), "inProgress");
   assertTrue(setupResult.fixture.ball.velocity.x > 0);
-  assertTrue(setupResult.fixture.ball.velocity.z > 0);
+  assertEqual(setupResult.fixture.ball.velocity.y, 0);
+});
+
+test("Keyboard up direction throws diagonally up and inward", function () {
+  var setupResult = setup();
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "left",
+    position: new Vector2d(
+      setupResult.fixture.config.pitch.fieldLeft,
+      setupResult.fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(setupResult.fixture);
+
+  setupResult.input.handleKey({ keyCode: 38, type: "keydown" });
+
+  assertTrue(setupResult.fixture.ball.velocity.x > 0);
+  assertTrue(setupResult.fixture.ball.velocity.y < 0);
+  assertNear(
+    Math.abs(setupResult.fixture.ball.velocity.x),
+    Math.abs(setupResult.fixture.ball.velocity.y),
+    0.0001,
+  );
+  assertEqual(setupResult.fixture.boundaryDetector.update(), null);
+});
+
+test("Keyboard down direction throws diagonally down and inward", function () {
+  var setupResult = setup();
+  setupResult.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "right",
+    position: new Vector2d(
+      setupResult.fixture.config.pitch.fieldRight,
+      setupResult.fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(setupResult.fixture);
+
+  setupResult.input.handleKey({ keyCode: 40, type: "keydown" });
+
+  assertTrue(setupResult.fixture.ball.velocity.x < 0);
+  assertTrue(setupResult.fixture.ball.velocity.y > 0);
+  assertNear(
+    Math.abs(setupResult.fixture.ball.velocity.x),
+    Math.abs(setupResult.fixture.ball.velocity.y),
+    0.0001,
+  );
+  assertEqual(setupResult.fixture.boundaryDetector.update(), null);
 });
 
 test("Touch direction executes a human throw-in and clamps it inward", function () {
@@ -187,7 +284,7 @@ test("Touch direction executes a human throw-in and clamps it inward", function 
   assertTrue(setupResult.fixture.ball.velocity.x < 0);
 });
 
-test("Touch executes a throw-in when the taker is ready before positioning completes", function () {
+test("Touch executes when the home taker is ready without waiting for receiver", function () {
   var setupResult = setup({ homeTeamSize: 4, awayTeamSize: 4 });
   setupResult.game.beginRestart({
     type: "throwIn",
@@ -202,10 +299,22 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
   var readyPlayer = controller.readyPlayer();
   var placements = controller.placements();
   assertTrue(readyPlayer !== null && placements !== null);
+  var receiverPlacement = null;
+  var closestReceiverDistance = Infinity;
+  var ballPosition = controller.ballPosition();
+  assertTrue(ballPosition !== null);
   for (const side of ["home", "away"] as const) {
     for (const placement of placements[side]) {
       if (placement.player === readyPlayer) {
         readyPlayer.placeAt(placement.target);
+      } else if (side == "home") {
+        var dx = placement.target.x - ballPosition.x;
+        var dy = placement.target.y - ballPosition.y;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < closestReceiverDistance) {
+          receiverPlacement = placement;
+          closestReceiverDistance = distance;
+        }
       }
     }
   }
@@ -220,6 +329,14 @@ test("Touch executes a throw-in when the taker is ready before positioning compl
 
   assertEqual(setupResult.restartController.phase(), "inProgress");
   assertEqual(controller.isActive(), false);
+  assertTrue(receiverPlacement !== null);
+  assertTrue(
+    setupResult.fixture.ball.intendedReceiver === receiverPlacement.player,
+  );
+  assertTrue(
+    setupResult.fixture.homeTeam.humanPlayer === receiverPlacement.player,
+  );
+  assertEqual(setupResult.fixture.game.humanController.touchTarget, null);
   assertTrue(setupResult.fixture.ball.velocity.x < 0);
 });
 
@@ -261,6 +378,32 @@ test("C awards a home corner on the ball side when debugging is enabled", functi
   );
 });
 
+test("T awards a home throw-in on the nearest touchline", function () {
+  var setupResult = setup({ homeTeamSize: 4, awayTeamSize: 4 });
+  setupResult.fixture.config.debug.enabled = true;
+  setupResult.restartController.clear();
+  setupResult.game.matchFlow.enterNormalPlayForTesting();
+  setupResult.fixture.ball.position.x =
+    setupResult.fixture.config.pitch.fieldRight - 20;
+  setupResult.fixture.ball.position.y =
+    setupResult.fixture.config.pitch.aiCenterY + 50;
+
+  setupResult.input.handleKey({ keyCode: 84, type: "keydown" });
+
+  assertEqual(setupResult.restartController.type(), "throwIn");
+  assertEqual(setupResult.restartController.phase(), "positioning");
+  assertEqual(setupResult.restartController.teamAiState("home"), "throwInUs");
+  var ballPosition = setupResult.positioningController.ballPosition();
+  assertTrue(ballPosition !== null);
+  assertEqual(
+    ballPosition.x,
+    setupResult.fixture.config.pitch.fieldRight -
+      setupResult.fixture.config.ball.radius -
+      setupResult.fixture.config.restarts.placementClearance,
+  );
+  assertEqual(ballPosition.y, setupResult.fixture.config.pitch.aiCenterY + 50);
+});
+
 test("C corner diagnostic is disabled when debugging is disabled", function () {
   var setupResult = setup();
   setupResult.fixture.config.debug.enabled = false;
@@ -268,6 +411,18 @@ test("C corner diagnostic is disabled when debugging is disabled", function () {
   setupResult.game.matchFlow.enterNormalPlayForTesting();
 
   setupResult.input.handleKey({ keyCode: 67, type: "keydown" });
+
+  assertEqual(setupResult.restartController.type(), null);
+  assertEqual(setupResult.positioningController.isActive(), false);
+});
+
+test("T throw-in diagnostic is disabled when debugging is disabled", function () {
+  var setupResult = setup();
+  setupResult.fixture.config.debug.enabled = false;
+  setupResult.restartController.clear();
+  setupResult.game.matchFlow.enterNormalPlayForTesting();
+
+  setupResult.input.handleKey({ keyCode: 84, type: "keydown" });
 
   assertEqual(setupResult.restartController.type(), null);
   assertEqual(setupResult.positioningController.isActive(), false);

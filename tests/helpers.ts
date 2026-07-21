@@ -5,6 +5,7 @@ import { Configuration, type GameAssets } from "../src/core/configuration";
 import { createGame, type Game } from "../src/core/game";
 import type { DebugInputEvent } from "../src/types";
 import { TEAM_SIDES } from "../src/types";
+import type { PhysicsUpdateMode } from "../src/world/physics";
 
 export interface FixtureOptions {
   homeTeamSize?: number;
@@ -118,7 +119,7 @@ export function completePositioning(fixture: TestFixture): void {
 export function advancePhysics(
   fixture: TestFixture,
   deltaSeconds: number,
-  mode: "full" | "playersOnly" | "ballOnly" = "full",
+  mode: PhysicsUpdateMode = "full",
 ): void {
   vi.useFakeTimers();
   vi.setSystemTime(fixture.physics.lastUpdated + deltaSeconds * 1000);

@@ -1,4 +1,4 @@
-import { assertEqual, assertTrue, test } from "../testlib";
+import { assertEqual, assertNear, assertTrue, test } from "../testlib";
 import { makeConfig } from "../helpers";
 import { Formation, type FormationRole } from "../../src/ai/formation";
 import {
@@ -50,7 +50,7 @@ test("Formation uses relative kickoff states for both teams", function () {
   var home = formation.positions("kickoffUs", "home", 3);
   var away = formation.positions("kickoffOpponent", "away", 3);
 
-  assertTrue(home[2].y > config.pitch.aiCenterY);
+  assertTrue(home[2].y < config.pitch.aiCenterY);
   assertTrue(Math.abs(home[2].y - config.pitch.aiCenterY) <= 25);
   assertTrue(away[2].y < config.pitch.aiCenterY);
   assertTrue(outsideCenterEllipse(config, away[2]));
@@ -63,7 +63,7 @@ test("Formation mirrors relative states for an away kickoff", function () {
   var home = formation.positions("kickoffOpponent", "home", 3);
   var away = formation.positions("kickoffUs", "away", 3);
 
-  assertTrue(away[2].y < config.pitch.aiCenterY);
+  assertTrue(away[2].y > config.pitch.aiCenterY);
   assertTrue(Math.abs(away[2].y - config.pitch.aiCenterY) <= 25);
   assertTrue(home[2].y > config.pitch.aiCenterY);
   assertTrue(outsideCenterEllipse(config, home[2]));
@@ -79,12 +79,12 @@ test("Formation gives one 5v5 striker a dedicated close kickoff position", funct
   assertEqual(home[3].x, config.pitch.initialBallPosition.x);
   assertEqual(
     home[3].y,
-    config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
+    config.pitch.aiCenterY - config.restarts.kickoffTakerDistance,
   );
   assertEqual(away[3].x, config.pitch.initialBallPosition.x);
   assertEqual(
     away[3].y,
-    config.pitch.aiCenterY - config.restarts.kickoffTakerDistance,
+    config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
   );
 
   assertEqual(home[4].x, config.pitch.initialBallPosition.x + 45);
@@ -161,7 +161,7 @@ test("Formation keeps 11-player kickoff midfielders outside the center ellipse",
   assertEqual(kicking[9].x, config.pitch.initialBallPosition.x);
   assertEqual(
     kicking[9].y,
-    config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
+    config.pitch.aiCenterY - config.restarts.kickoffTakerDistance,
   );
 });
 
@@ -218,6 +218,29 @@ test("Formation keeps kickoff and defensive lines vertically sparse", function (
   assertTrue(
     config.ai.goalieDistance + awayDefense[1].y - awayDefense[0].y >= 60,
   );
+});
+
+test("Formation places goalkeepers at the configured goal-line distance", function () {
+  var config = makeConfig({ homeTeamSize: 2, awayTeamSize: 2 });
+  var formation = new Formation(config);
+  var home = formation.positions("defense", "home", 2);
+  var away = formation.positions("defense", "away", 2);
+
+  assertEqual(config.ai.goalieDistance, 3);
+  assertNear(
+    home[0].y,
+    config.pitch.goalBottomTopLeft.y - config.ai.goalieDistance,
+    0.0001,
+  );
+  assertNear(
+    away[0].y,
+    config.pitch.goalTopBottomLeft.y + config.ai.goalieDistance,
+    0.0001,
+  );
+
+  config.ai.goalieDistance = 8;
+  home = formation.positions("defense", "home", 2);
+  assertNear(home[0].y, config.pitch.goalBottomTopLeft.y - 8, 0.0001);
 });
 
 test("Formation defense shifts toward own goal and attack shifts toward opponent goal", function () {

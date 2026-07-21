@@ -1,3 +1,4 @@
+import { math as MathLib } from "../../math/math";
 import type { Vector2 } from "../../math/vector";
 import type {
   GameContext,
@@ -19,6 +20,18 @@ export { RestartController };
 
 export interface RestartBeginOptions {
   positioningMode?: "immediate";
+  goalCelebration?: {
+    scoringSide: TeamSide;
+    scorer: Player;
+    goalFocusTarget: Vector2;
+  };
+}
+
+interface GoalCelebrationSession {
+  scoringSide: TeamSide;
+  scorer: Player;
+  goalFocusTarget: Vector2;
+  elapsed: number;
 }
 
 interface RestartSession {
@@ -29,6 +42,8 @@ interface RestartSession {
   phase: RestartPhase;
   taker: Player | null;
   placements: RestartPlacements;
+  scene: RestartScene;
+  celebration: GoalCelebrationSession | null;
 }
 
 class RestartController {
@@ -56,6 +71,7 @@ class RestartController {
     if (strategy == null) return false;
     const positioningMode = options != null ? options.positioningMode : null;
     const isImmediate = positioningMode == "immediate";
+    const celebrationOptions = options?.goalCelebration ?? null;
 
     this.restartSequence++;
     const sessionRequest: RestartRequest = {
@@ -66,27 +82,48 @@ class RestartController {
     context.humanController.clearInput();
     context.ball.heldBy = null;
     const scene = strategy.createScene(context, sessionRequest);
+    const celebration =
+      celebrationOptions == null
+        ? null
+        : {
+            ...celebrationOptions,
+            elapsed: 0,
+          };
     this.session = {
       sequence: this.restartSequence,
       request: sessionRequest,
       strategy: strategy,
       opponentReadyElapsed: 0,
-      phase: "positioning",
+      phase: celebration == null ? "positioning" : "celebrating",
       taker: scene.readyPlayer,
       placements: scene.placements,
+      scene,
+      celebration,
     };
-    if (isImmediate) {
+    context.ball.lastTouchedPlayer = null;
+    if (celebration != null) {
+      this.stopPlayers(context);
+      this.updateCelebration(context);
+    } else if (isImmediate) {
       this.applySceneImmediately(context, scene);
       this.finishPositioning(context);
     } else {
-      this.positioningController.play({
-        ...scene,
-        onComplete: () => {
-          this.finishPositioning(context);
-        },
-      });
+      this.startPositioning(context);
     }
     return true;
+  }
+
+  private startPositioning(context: GameContext): void {
+    if (this.session == null) return;
+    this.session.phase = "positioning";
+    this.session.celebration = null;
+    context.camera.setFocusTarget(this.session.scene.ballPosition);
+    this.positioningController.play({
+      ...this.session.scene,
+      onComplete: () => {
+        this.finishPositioning(context);
+      },
+    });
   }
 
   private applySceneImmediately(
@@ -154,9 +191,31 @@ class RestartController {
     return this.resume(context, direction);
   }
 
+  public resumeFromKeyboardInput(
+    context: GameContext,
+    direction: Vector2,
+  ): boolean {
+    if (!this.canResumeFromInput() || this.session == null) return false;
+    const keyboardDirection = this.session.strategy.keyboardDirection;
+    const mappedDirection =
+      keyboardDirection == null
+        ? direction
+        : keyboardDirection.call(
+            this.session.strategy,
+            this.session.request,
+            direction,
+          );
+    if (mappedDirection == null) return false;
+    return this.resume(context, mappedDirection);
+  }
+
   public simulationMode(): SimulationMode {
     if (this.session == null) return "full";
-    if (this.session.phase == "positioning") return "playersOnly";
+    if (
+      this.session.phase == "celebrating" ||
+      this.session.phase == "positioning"
+    )
+      return this.session.phase == "celebrating" ? "cutscene" : "playersOnly";
     if (this.session.phase == "inProgress") return "full";
     if (
       this.session.phase == "waitingForInput" &&
@@ -213,13 +272,31 @@ class RestartController {
   }
 
   public updateBeforePhysics(context: GameContext): void {
-    if (this.session != null && this.session.phase == "positioning") {
+    if (this.session?.phase == "celebrating") {
+      this.updateCelebration(context);
+    } else if (this.session != null && this.session.phase == "positioning") {
       this.positioningController.updateBeforePhysics(context);
     }
   }
 
   public updateAfterPhysics(context: GameContext, deltaSeconds: number): void {
     if (this.session == null) return;
+    if (this.session.phase == "celebrating") {
+      this.updateCelebration(context);
+      const celebration = this.session.celebration;
+      if (celebration == null) return;
+      celebration.elapsed += deltaSeconds;
+      const duration = Math.max(
+        0,
+        context.config.cutscene.goalCelebrationSeconds,
+      );
+      if (celebration.elapsed >= duration) {
+        this.startPositioning(context);
+      } else {
+        this.updateCelebration(context);
+      }
+      return;
+    }
     if (this.session.phase == "positioning") {
       this.positioningController.updateAfterPhysics(context);
       if (
@@ -273,7 +350,19 @@ class RestartController {
     if (this.session.strategy.allowEarlyResume != true) return false;
     if (!this.canResume()) return false;
     if (context.humanController.hasMovementInput()) {
-      return this.resume(context, context.humanController.inputDirection());
+      const direction = context.humanController.inputDirection();
+      if (direction == null) return false;
+      const keyboardDirection = this.session.strategy.keyboardDirection;
+      const mappedDirection =
+        keyboardDirection == null
+          ? direction
+          : keyboardDirection.call(
+              this.session.strategy,
+              this.session.request,
+              direction,
+            );
+      if (mappedDirection == null) return false;
+      return this.resume(context, mappedDirection);
     }
     return false;
   }
@@ -292,5 +381,50 @@ class RestartController {
 
   public phase(): RestartPhase | null {
     return this.session == null ? null : this.session.phase;
+  }
+
+  private updateCelebration(context: GameContext): void {
+    if (this.session?.celebration == null) return;
+    const celebration = this.session.celebration;
+    const goalFocusSeconds = Math.max(
+      0,
+      context.config.cutscene.goalFocusSeconds,
+    );
+    context.camera.setFocusTarget(
+      celebration.elapsed < goalFocusSeconds
+        ? celebration.goalFocusTarget
+        : celebration.scorer.position,
+    );
+    for (const side of ["home", "away"] as const) {
+      for (const placement of this.session.placements[side]) {
+        this.movePlayerToTarget(context, placement.player, placement.target);
+      }
+    }
+  }
+
+  private movePlayerToTarget(
+    context: GameContext,
+    player: Player,
+    target: Vector2,
+  ): void {
+    const distance = MathLib.computeDistance(player.position, target);
+    const dx = target.x - player.position.x;
+    const dy = target.y - player.position.y;
+    const movingAway =
+      player.velocity.x * dx + player.velocity.y * dy <= 0 &&
+      (player.velocity.x != 0 || player.velocity.y != 0);
+    if (distance <= context.config.cutscene.arrivedRadius || movingAway) {
+      player.placeAt(target);
+      return;
+    }
+    player.velocity = MathLib.velocityTowards(
+      player.position,
+      target,
+      context.config.teamVelocity(player.teamSide),
+    );
+  }
+
+  private stopPlayers(context: GameContext): void {
+    for (const player of context.stadium.players) player.stop();
   }
 }

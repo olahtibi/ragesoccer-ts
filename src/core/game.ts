@@ -101,6 +101,10 @@ class Game {
     return this.matchFlow.resumeFromInput(this.context(), direction);
   }
 
+  public resumeFromKeyboardInput(direction: Vector2): boolean {
+    return this.matchFlow.resumeFromKeyboardInput(this.context(), direction);
+  }
+
   public beginRestart(request: RestartRequest): boolean {
     return this.matchFlow.beginRestart(request, this.context());
   }
@@ -113,9 +117,9 @@ class Game {
     } else if (mode == "ballOnly") {
       this.physics.update("ballOnly");
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
-    } else if (mode == "playersOnly") {
+    } else if (mode == "playersOnly" || mode == "cutscene") {
       this.matchFlow.updateBeforePhysics(context);
-      this.physics.update("playersOnly");
+      this.physics.update(mode);
       this.matchFlow.updateAfterPhysics(context, this.physics.lastDt);
     } else {
       this.updateAi();

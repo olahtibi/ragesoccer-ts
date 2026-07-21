@@ -6,6 +6,7 @@ export { BrowserInput };
 const KEY = {
   ...ARROW_KEYS,
   debugCorner: 67,
+  debugThrowIn: 84,
   fps: 70,
   pauseAndDump: 191,
   viewportSmaller: 81,
@@ -54,12 +55,21 @@ class BrowserInput {
     this.applyHumanInput();
   }
 
-  public handleKey(event: Pick<KeyboardEvent, "keyCode" | "type">): void {
+  public handleKey(
+    event: Pick<KeyboardEvent, "keyCode" | "type"> &
+      Partial<Pick<KeyboardEvent, "preventDefault">>,
+  ): void {
+    if (
+      Object.values(ARROW_KEYS).includes(event.keyCode as 37 | 38 | 39 | 40)
+    ) {
+      event.preventDefault?.();
+    }
     this.game.debugTool.recordKeyEvent(event);
     this.game.humanController.setKey(event.keyCode, event.type == "keydown");
     if (event.type == "keydown") this.handleCommand(event.keyCode);
     if (this.game.humanController.hasMovementInput()) {
-      this.game.resumeFromInput(this.game.humanController.inputDirection());
+      const direction = this.game.humanController.inputDirection();
+      if (direction != null) this.game.resumeFromKeyboardInput(direction);
     }
     this.applyHumanInput();
   }
@@ -91,6 +101,30 @@ class BrowserInput {
         awardedTo: "home",
         boundary: "top",
         position: new Vector2d(cornerX, this.game.config.pitch.fieldTop),
+      });
+    }
+    if (
+      keyCode == KEY.debugThrowIn &&
+      this.game.config.debug.enabled == true &&
+      !this.game.matchFlow.isOutOfPlay()
+    ) {
+      const ball = this.game.stadium.ball.position;
+      const distanceToLeft = Math.abs(
+        ball.x - this.game.config.pitch.fieldLeft,
+      );
+      const distanceToRight = Math.abs(
+        this.game.config.pitch.fieldRight - ball.x,
+      );
+      const boundary = distanceToLeft <= distanceToRight ? "left" : "right";
+      const x =
+        boundary == "left"
+          ? this.game.config.pitch.fieldLeft
+          : this.game.config.pitch.fieldRight;
+      this.game.beginRestart({
+        type: "throwIn",
+        awardedTo: "home",
+        boundary,
+        position: new Vector2d(x, ball.y),
       });
     }
     if (keyCode == KEY.pauseAndDump && this.game.config.debug.enabled == true) {

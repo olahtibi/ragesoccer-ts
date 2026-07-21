@@ -139,6 +139,31 @@ test("PositioningController is ready when its taker arrives first", function () 
   );
 });
 
+test("PositioningController waits for additional required players", function () {
+  var fixture = makeFixture({ homeTeamSize: 2 });
+  var takerTarget = new Vector2d(120, 100);
+  var receiverTarget = new Vector2d(150, 100);
+  fixture.homePlayers[0].placeAt(takerTarget);
+  fixture.homePlayers[1].placeAt(new Vector2d(300, 300));
+  fixture.positioningController.play({
+    ballPosition: new Vector3d(334, 433, 0),
+    readyPlayer: fixture.homePlayers[0],
+    additionalReadyPlayers: [fixture.homePlayers[1]],
+    placements: {
+      home: [
+        { player: fixture.homePlayers[0], target: takerTarget },
+        { player: fixture.homePlayers[1], target: receiverTarget },
+      ],
+      away: [],
+    },
+    onComplete: function () {},
+  });
+
+  assertEqual(fixture.positioningController.isReadyForInput(), false);
+  fixture.homePlayers[1].placeAt(receiverTarget);
+  assertEqual(fixture.positioningController.isReadyForInput(), true);
+});
+
 test("Cancelling ready positioning does not snap unfinished players", function () {
   var fixture = makeFixture({ homeTeamSize: 2 });
   var completed = false;

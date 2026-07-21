@@ -1,5 +1,10 @@
 import { assertEqual, assertNear, assertTrue, test } from "../../testlib";
-import { completePositioning, makeFixture, updateTeamAis } from "../../helpers";
+import {
+  advancePhysics,
+  completePositioning,
+  makeFixture,
+  updateTeamAis,
+} from "../../helpers";
 import { Formation } from "../../../src/ai/formation";
 import { CornerFormation } from "../../../src/ai/cornerFormation";
 import { CornerRestart } from "../../../src/core/restarts/cornerRestart";
@@ -13,7 +18,11 @@ import type { Vector2 } from "../../../src/math/vector";
 import type { Configuration } from "../../../src/core/configuration";
 import type { PositioningController } from "../../../src/core/restarts/positioningController";
 import type { Player } from "../../../src/world/player";
-import type { RestartRequest, RestartStrategy } from "../../../src/types";
+import type {
+  PlayerPlacement,
+  RestartRequest,
+  RestartStrategy,
+} from "../../../src/types";
 
 function ellipseDistance(config: Configuration, position: Vector2): number {
   var dx = position.x - config.pitch.initialBallPosition.x;
@@ -41,6 +50,25 @@ function positioningTargetForPlayer(
     }
   }
   return null;
+}
+
+function throwInReceiverPlacement(
+  controller: PositioningController,
+  taker: Player,
+): PlayerPlacement {
+  var placements = required(controller.placements())[taker.teamSide];
+  var ballPosition = required(controller.ballPosition());
+  var receiver: PlayerPlacement | null = null;
+  var closestDistance = Infinity;
+  for (const placement of placements) {
+    if (placement.player === taker) continue;
+    var distance = MathLib.computeDistance(placement.target, ballPosition);
+    if (distance < closestDistance) {
+      receiver = placement;
+      closestDistance = distance;
+    }
+  }
+  return required(receiver);
 }
 
 function required<T>(value: T | null | undefined): T {
@@ -293,7 +321,7 @@ test("Early away goal kick keeps the goalkeeper as designated taker", function (
   assertEqual(fixture.awayTeamAi.debugSnapshot()[1].command, "moveToPosition");
 });
 
-test("Away throw-in launches automatically when its taker is ready", function () {
+test("Away throw-in waits for its taker and receiver before launching", function () {
   var fixture = makeFixture({ homeTeamSize: 4, awayTeamSize: 4 });
   fixture.config.restarts.opponentDelaySeconds = 0;
   fixture.game.beginRestart({
@@ -308,9 +336,17 @@ test("Away throw-in launches automatically when its taker is ready", function ()
   var controller = fixture.positioningController;
   var readyPlayer = required(controller.readyPlayer());
   var target = required(positioningTargetForPlayer(controller, readyPlayer));
+  var receiver = throwInReceiverPlacement(controller, readyPlayer);
   readyPlayer.position.x = target.x;
   readyPlayer.position.y = target.y;
 
+  fixture.restartController.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+
+  assertEqual(fixture.restartController.phase(), "positioning");
+  receiver.player.placeAt(receiver.target);
   fixture.restartController.updateAfterPhysics(
     fixture.game.context(),
     fixture.physics.lastDt,
@@ -320,6 +356,73 @@ test("Away throw-in launches automatically when its taker is ready", function ()
   assertTrue(fixture.ball.velocity.x < 0);
   assertTrue(fixture.ball.velocity.z > 0);
   assertEqual(fixture.ball.lastTouchedBy, "away");
+});
+
+test("Throw-in positions a close receiver on an inward attacking diagonal", function () {
+  var fixture = makeFixture({ homeTeamSize: 4, awayTeamSize: 4 });
+  fixture.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "left",
+    position: new Vector2d(
+      fixture.config.pitch.fieldLeft,
+      fixture.config.pitch.aiCenterY,
+    ),
+  });
+  var controller = fixture.positioningController;
+  var taker = required(controller.readyPlayer());
+  var receiver = throwInReceiverPlacement(controller, taker);
+  var ballPosition = required(controller.ballPosition());
+
+  assertTrue(receiver.player !== taker);
+  assertNear(
+    MathLib.computeDistance(receiver.target, ballPosition),
+    fixture.config.restarts.throwInReceiverDistance,
+    0.0001,
+  );
+  assertTrue(receiver.target.x > ballPosition.x);
+  assertTrue(receiver.target.y < ballPosition.y);
+});
+
+test("Throw-in selects the closest non-goalkeeper receiver", function () {
+  var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 3 });
+  var throwPosition = new Vector2d(
+    fixture.config.pitch.fieldLeft,
+    fixture.config.pitch.aiCenterY,
+  );
+  fixture.homePlayers[2].placeAt(
+    new Vector2d(
+      throwPosition.x +
+        fixture.config.ball.radius +
+        fixture.config.restarts.placementClearance,
+      throwPosition.y,
+    ),
+  );
+  fixture.homePlayers[0].placeAt(
+    new Vector2d(
+      throwPosition.x +
+        fixture.config.ball.radius +
+        fixture.config.restarts.placementClearance +
+        1,
+      throwPosition.y,
+    ),
+  );
+  fixture.homePlayers[1].placeAt(
+    new Vector2d(throwPosition.x + 100, throwPosition.y),
+  );
+
+  fixture.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "home",
+    boundary: "left",
+    position: throwPosition,
+  });
+  var taker = required(fixture.positioningController.readyPlayer());
+  var receiver = throwInReceiverPlacement(fixture.positioningController, taker);
+
+  assertTrue(taker === fixture.homePlayers[2]);
+  assertTrue(receiver.player === fixture.homePlayers[1]);
+  assertTrue(receiver.player !== fixture.homePlayers[0]);
 });
 
 test("Held human input starts an early restart when the taker becomes ready", function () {
@@ -358,6 +461,29 @@ test("Kickoff assigns relative states and movement permission", function () {
   assertEqual(fixture.restartController.canTeamMove("away"), true);
 });
 
+test("Away kickoff aims its opening pass backward", function () {
+  var fixture = makeFixture({ kickoffSide: "away" });
+  fixture.config.restarts.opponentDelaySeconds = 0;
+  fixture.restartController.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+  var target = required(fixture.restartController.attackTarget("away"));
+
+  assertEqual(target.x, fixture.config.pitch.initialBallPosition.x);
+  assertTrue(target.y < fixture.config.pitch.aiCenterY);
+  assertEqual(fixture.restartController.attackTarget("home"), null);
+
+  var taker = required(fixture.restartController.taker("away"));
+  assertTrue(taker.position.y > fixture.config.pitch.aiCenterY);
+  taker.position.x = fixture.ball.position.x;
+  taker.position.y = fixture.ball.position.y + 4;
+  updateTeamAis(fixture);
+  advancePhysics(fixture, 0);
+
+  assertTrue(fixture.ball.velocity.y < 0);
+});
+
 test("Throw-in uses fresh directional input to launch a lofted inward throw", function () {
   var fixture = makeFixture();
   fixture.game.beginRestart({
@@ -370,6 +496,9 @@ test("Throw-in uses fresh directional input to launch a lofted inward throw", fu
     ),
   });
   fixture.positioningController.updateBeforePhysics(fixture.game.context());
+  var restartBallPosition = required(
+    fixture.positioningController.ballPosition(),
+  );
   completePositioning(fixture);
 
   var taker = fixture.ball.heldBy;
@@ -379,6 +508,8 @@ test("Throw-in uses fresh directional input to launch a lofted inward throw", fu
   assertEqual(taker.facingY, 0);
   assertTrue(heldPosition.x > taker.position.x);
   assertTrue(heldPosition.y < taker.position.y);
+  assertEqual(heldPosition.x, restartBallPosition.x);
+  assertEqual(heldPosition.y, restartBallPosition.y);
 
   fixture.game.resumeFromInput(new Vector2d(-1, 0));
 
@@ -392,7 +523,7 @@ test("Throw-in uses fresh directional input to launch a lofted inward throw", fu
 });
 
 test("Away throw-in chooses an automatic inward attacking direction", function () {
-  var fixture = makeFixture();
+  var fixture = makeFixture({ homeTeamSize: 4, awayTeamSize: 4 });
   fixture.config.restarts.opponentDelaySeconds = 0;
   fixture.game.beginRestart({
     type: "throwIn",
@@ -404,9 +535,12 @@ test("Away throw-in chooses an automatic inward attacking direction", function (
     ),
   });
   fixture.positioningController.updateBeforePhysics(fixture.game.context());
+  var taker = required(fixture.positioningController.readyPlayer());
+  var receiver = throwInReceiverPlacement(fixture.positioningController, taker);
   completePositioning(fixture);
 
   var heldBy = required(fixture.ball.heldBy);
+  var heldPosition = fixture.ball.heldPosition();
   assertEqual(heldBy.facingX, -1);
   assertEqual(heldBy.facingY, 0);
 
@@ -417,7 +551,82 @@ test("Away throw-in chooses an automatic inward attacking direction", function (
 
   assertTrue(fixture.ball.velocity.x < 0);
   assertTrue(fixture.ball.velocity.y > 0);
+  var receiverDx = receiver.player.position.x - heldPosition.x;
+  var receiverDy = receiver.player.position.y - heldPosition.y;
+  assertNear(
+    fixture.ball.velocity.x * receiverDy - fixture.ball.velocity.y * receiverDx,
+    0,
+    0.0001,
+  );
   assertEqual(fixture.ball.lastTouchedBy, "away");
+  assertTrue(fixture.ball.intendedReceiver === receiver.player);
+
+  fixture.game.matchFlow.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+  updateTeamAis(fixture);
+  var receiverIndex = fixture.awayPlayers.indexOf(receiver.player);
+  var takerIndex = fixture.awayPlayers.indexOf(taker);
+  assertEqual(
+    fixture.awayTeamAi.debugSnapshot()[receiverIndex].command,
+    "attackBall",
+  );
+  assertEqual(
+    fixture.awayTeamAi.debugSnapshot()[takerIndex].command,
+    "moveToPosition",
+  );
+});
+
+test("Away throw-in near the attacking goal line stays in bounds", function () {
+  var fixture = makeFixture({ homeTeamSize: 4, awayTeamSize: 4 });
+  fixture.config.restarts.opponentDelaySeconds = 0;
+  fixture.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "away",
+    boundary: "right",
+    position: new Vector2d(
+      fixture.config.pitch.fieldRight,
+      fixture.config.pitch.fieldBottom - 5,
+    ),
+  });
+  fixture.positioningController.updateBeforePhysics(fixture.game.context());
+  var taker = required(fixture.positioningController.readyPlayer());
+  var receiver = throwInReceiverPlacement(fixture.positioningController, taker);
+  var ballPosition = required(fixture.positioningController.ballPosition());
+  assertTrue(receiver.target.x < ballPosition.x);
+  assertTrue(receiver.target.y < ballPosition.y);
+  completePositioning(fixture);
+
+  fixture.restartController.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+
+  assertTrue(fixture.ball.velocity.x < 0);
+  assertTrue(fixture.ball.velocity.y < 0);
+});
+
+test("One-player away throw-in keeps the automatic direction fallback", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
+  fixture.config.restarts.opponentDelaySeconds = 0;
+  fixture.game.beginRestart({
+    type: "throwIn",
+    awardedTo: "away",
+    boundary: "right",
+    position: new Vector2d(
+      fixture.config.pitch.fieldRight,
+      fixture.config.pitch.aiCenterY,
+    ),
+  });
+  completePositioning(fixture);
+  fixture.restartController.updateAfterPhysics(
+    fixture.game.context(),
+    fixture.physics.lastDt,
+  );
+
+  assertTrue(fixture.ball.velocity.x < 0);
+  assertTrue(fixture.ball.velocity.y > 0);
 });
 
 test("Set-piece positioning keeps opponents outside the restart distance", function () {
@@ -605,6 +814,31 @@ test("Kickoff clamps the human player to the center ellipse", function () {
 
   assertNear(ellipseDistance(fixture.config, player.position), 1, 0.0001);
   assertEqual(player.velocity.y, 0);
+});
+
+test("Kickoff scales only its first kick impulse", function () {
+  var fixture = makeFixture();
+  var player = required(fixture.homeTeam.humanPlayer);
+  player.position.x = 100;
+  player.position.y = 100;
+  player.velocity.x = 20;
+  player.velocity.y = 0;
+  fixture.ball.placeAt(new Vector2d(104, 100));
+  fixture.game.resumeFromInput(null);
+
+  advancePhysics(fixture, 0);
+
+  var kickoffVelocity = fixture.ball.velocity.x;
+  assertTrue(kickoffVelocity > 0);
+
+  fixture.ball.placeAt(new Vector2d(104, 100));
+  advancePhysics(fixture, 0);
+
+  assertNear(
+    kickoffVelocity / fixture.ball.velocity.x,
+    fixture.config.restarts.kickoffImpulseMultiplier,
+    0.0001,
+  );
 });
 
 test("Kickoff scene exposes the dedicated first striker as taker", function () {

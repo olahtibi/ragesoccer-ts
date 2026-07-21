@@ -160,6 +160,104 @@ test("TeamAi assigns attackBall to the closest away player", function () {
   assertEqual(attackBallIndex(fixture.awayTeamAi), 1);
 });
 
+test("TeamAi prioritizes an intended receiver over the closer thrower", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 3 });
+  fixture.ball.position.x = fixture.awayPlayers[2].position.x;
+  fixture.ball.position.y = fixture.awayPlayers[2].position.y;
+  fixture.ball.intendedReceiver = fixture.awayPlayers[1];
+
+  update(fixture.awayTeamAi, false, true);
+
+  assertEqual(attackBallIndex(fixture.awayTeamAi), 1);
+  assertEqual(fixture.awayTeamAi.debugSnapshot()[2].command, "moveToPosition");
+});
+
+test("TeamAi goalkeepers follow the ball across their goal line", function () {
+  var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 3 });
+  fixture.homeTeam.humanPlayer = fixture.homePlayers[1];
+  fixture.ball.position.x = 320;
+
+  update(fixture.homeTeamAi, false, true);
+  update(fixture.awayTeamAi, false, true);
+
+  var homeTarget = fixture.homeTeamAi.debugSnapshot()[0].target;
+  var awayTarget = fixture.awayTeamAi.debugSnapshot()[0].target;
+  assertTrue(homeTarget !== null);
+  assertTrue(awayTarget !== null);
+  assertNear(homeTarget.x, fixture.ball.position.x, 0.0001);
+  assertNear(awayTarget.x, fixture.ball.position.x, 0.0001);
+  assertNear(
+    homeTarget.y,
+    fixture.config.pitch.goalBottomTopLeft.y - fixture.config.ai.goalieDistance,
+    0.0001,
+  );
+  assertNear(
+    awayTarget.y,
+    fixture.config.pitch.goalTopBottomLeft.y + fixture.config.ai.goalieDistance,
+    0.0001,
+  );
+  fixture.ball.position.x = fixture.config.pitch.fieldLeft;
+  fixture.homePlayers[0].updateFacing();
+  fixture.awayPlayers[0].updateFacing();
+  assertEqual(fixture.homePlayers[0].facingX, -1);
+  assertEqual(fixture.homePlayers[0].facingY, -1);
+  assertEqual(fixture.awayPlayers[0].facingX, -1);
+  assertEqual(fixture.awayPlayers[0].facingY, 1);
+});
+
+test("TeamAi keeps the goalkeeper body between the posts", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 2 });
+  fixture.ball.position.x = fixture.config.pitch.fieldLeft;
+  update(fixture.awayTeamAi, false, true);
+  var target = fixture.awayTeamAi.debugSnapshot()[0].target;
+  assertTrue(target !== null);
+  assertNear(
+    target.x,
+    fixture.config.pitch.goalTopTopLeft.x + fixture.config.player.radius,
+    0.0001,
+  );
+
+  fixture.ball.position.x = fixture.config.pitch.fieldRight;
+  update(fixture.awayTeamAi, false, true);
+  target = fixture.awayTeamAi.debugSnapshot()[0].target;
+  assertTrue(target !== null);
+  assertNear(
+    target.x,
+    fixture.config.pitch.goalTopTopRight.x - fixture.config.player.radius,
+    0.0001,
+  );
+});
+
+test("TeamAi goalkeeper chases when closest and returns to its line afterward", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 3 });
+  fixture.ball.position.x = fixture.awayPlayers[0].position.x;
+  fixture.ball.position.y = fixture.awayPlayers[0].position.y;
+
+  update(fixture.awayTeamAi, false, true);
+
+  assertEqual(fixture.awayTeamAi.debugSnapshot()[0].command, "attackBall");
+
+  fixture.ball.position.x = fixture.awayPlayers[2].position.x;
+  fixture.ball.position.y = fixture.awayPlayers[2].position.y;
+  update(fixture.awayTeamAi, false, true);
+
+  var goalkeeper = fixture.awayTeamAi.debugSnapshot()[0];
+  assertEqual(attackBallIndex(fixture.awayTeamAi), 2);
+  assertEqual(goalkeeper.command, "moveToPosition");
+  assertTrue(goalkeeper.target !== null);
+  assertNear(
+    goalkeeper.target.x,
+    Math.max(
+      fixture.config.pitch.goalTopTopLeft.x + fixture.config.player.radius,
+      Math.min(
+        fixture.config.pitch.goalTopTopRight.x - fixture.config.player.radius,
+        fixture.ball.position.x,
+      ),
+    ),
+    0.0001,
+  );
+});
+
 test("TeamAi applies attacker switching hysteresis", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 2 });
   fixture.config.ai.attackerSwitchHysteresisDistance = 20;
@@ -340,7 +438,7 @@ test("TeamAi creates deterministic balanced formation movement profiles", functi
   assertNear(paceTotal / outfieldCount, 1, 0.0000001);
 });
 
-test("TeamAi flexes open-play targets by player and role while keeping goalie exact", function () {
+test("TeamAi flexes open-play targets while keeping goalie tracking exact", function () {
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 11 });
   var baseline = makeFixture({ homeTeamSize: 1, awayTeamSize: 11 });
   var ai = fixture.awayTeamAi;
@@ -353,7 +451,12 @@ test("TeamAi flexes open-play targets by player and role while keeping goalie ex
   var targets = movementTargets(ai);
   var baselineTargets = movementTargets(baseline.awayTeamAi);
 
-  assertNear(targets[0].x, baseTargets[0].x, 0.0000001);
+  assertNear(
+    targets[0].x,
+    fixture.config.pitch.goalTopTopRight.x - fixture.config.player.radius,
+    0.0000001,
+  );
+  assertNear(baselineTargets[0].x, baseline.ball.position.x, 0.0000001);
   assertNear(targets[0].y, baseTargets[0].y, 0.0000001);
   assertTrue(
     targets[1].x != baseTargets[1].x || targets[1].y != baseTargets[1].y,

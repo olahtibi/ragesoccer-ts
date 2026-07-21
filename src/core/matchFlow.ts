@@ -1,4 +1,6 @@
+import { Vector2 as Vector2d } from "../math/vector";
 import type { Vector2 } from "../math/vector";
+import { Formation } from "../ai/formation";
 import type { TeamAiUpdateContext } from "../ai/teamAi";
 import type {
   BoundaryEvent,
@@ -76,6 +78,16 @@ class MatchFlow {
   ): boolean {
     if (this.session.kind == "restart") {
       return this.restartController.resumeFromInput(context, direction);
+    }
+    return this.session.kind == "normalPlay";
+  }
+
+  public resumeFromKeyboardInput(
+    context: GameContext,
+    direction: Vector2,
+  ): boolean {
+    if (this.session.kind == "restart") {
+      return this.restartController.resumeFromKeyboardInput(context, direction);
     }
     return this.session.kind == "normalPlay";
   }
@@ -172,11 +184,16 @@ class MatchFlow {
     const scoringTeam = context.teams[scoredBy];
     const concedingSide = scoredBy == "home" ? "away" : "home";
     const concedingTeam = context.teams[concedingSide];
+    const scorer = this.goalScorer(context, scoredBy);
+    const goalFocusTarget = this.goalFocusTarget(context, scoredBy);
 
     scoringTeam.score++;
     return this.startRestart(
       { type: "kickoff", awardedTo: concedingTeam.side },
       context,
+      {
+        goalCelebration: { scoringSide: scoredBy, scorer, goalFocusTarget },
+      },
     );
   }
 
@@ -216,6 +233,32 @@ class MatchFlow {
     for (let i = 0; i < players.length; i++) {
       players[i].stop();
     }
+  }
+
+  private goalScorer(context: GameContext, scoredBy: TeamSide): Player {
+    const lastTouchedPlayer = context.ball.lastTouchedPlayer;
+    if (lastTouchedPlayer != null && lastTouchedPlayer.teamSide == scoredBy) {
+      return lastTouchedPlayer;
+    }
+    const team = context.teams[scoredBy];
+    const strikerIndex = new Formation(context.config).kickoffTakerIndex(
+      team.players.length,
+    );
+    return team.players[strikerIndex];
+  }
+
+  private goalFocusTarget(context: GameContext, scoredBy: TeamSide): Vector2 {
+    const pitch = context.config.pitch;
+    const topLeft =
+      scoredBy == "home" ? pitch.goalTopTopLeft : pitch.goalBottomTopLeft;
+    const bottomRight =
+      scoredBy == "home"
+        ? pitch.goalTopBottomRight
+        : pitch.goalBottomBottomRight;
+    return new Vector2d(
+      (topLeft.x + bottomRight.x) / 2,
+      (topLeft.y + bottomRight.y) / 2,
+    );
   }
 
   private updateOutOfPlay(context: GameContext, deltaSeconds: number): boolean {

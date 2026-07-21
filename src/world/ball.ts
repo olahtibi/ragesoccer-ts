@@ -12,6 +12,8 @@ class Ball {
   public readonly velocity: Vector3d;
   public phaseIndex: number;
   public lastTouchedBy: TeamSide | null;
+  public lastTouchedPlayer: Player | null;
+  public intendedReceiver: Player | null;
   public heldBy: Player | null;
   public rollDistance: number;
   private readonly spinPxPerPhase: number;
@@ -21,6 +23,7 @@ class Ball {
   private readonly heldOffsetY: number;
   private readonly shadowFrame: number;
   private readonly shadowOffset: number;
+  private nextKickImpulseMultiplier: number;
 
   public constructor(
     imgBall: HTMLImageElement,
@@ -33,6 +36,8 @@ class Ball {
     this.velocity = new Vector3d(0, 0, 0);
     this.phaseIndex = 0;
     this.lastTouchedBy = null;
+    this.lastTouchedPlayer = null;
+    this.intendedReceiver = null;
     this.heldBy = null;
     // Accumulated distance rolled since the last sprite phase change.
     this.rollDistance = 0;
@@ -43,6 +48,7 @@ class Ball {
     this.heldOffsetY = ballConfig.heldOffsetY;
     this.shadowFrame = ballConfig.shadowFrame;
     this.shadowOffset = ballConfig.shadowOffset;
+    this.nextKickImpulseMultiplier = 1;
   }
 
   public stop(): void {
@@ -56,6 +62,18 @@ class Ball {
     this.position.y = position.y;
     this.position.z = position.z ?? 0;
     this.stop();
+    this.intendedReceiver = null;
+    this.nextKickImpulseMultiplier = 1;
+  }
+
+  public scaleNextKickImpulse(multiplier: number): void {
+    this.nextKickImpulseMultiplier = multiplier;
+  }
+
+  public consumeKickImpulseMultiplier(): number {
+    const multiplier = this.nextKickImpulseMultiplier;
+    this.nextKickImpulseMultiplier = 1;
+    return multiplier;
   }
 
   public draw(ctx: CanvasRenderingContext2D): void {
