@@ -1,4 +1,4 @@
-import { assertEqual, assertNear, assertTrue, test } from "../testlib";
+import { assertEqual, assertNear, test } from "../testlib";
 import { canvasContext, makeFixture } from "../helpers";
 import { Vector3 } from "../../src/math/vector";
 
@@ -72,15 +72,14 @@ test("Ball does not animate while held and starts from its release position", fu
   assertEqual(ball.rollDistance, 0);
 });
 
-test("Ball keeps its shadow grounded while its body rises", function () {
+test("Ball uses the original fixed shadow size darkness and height offset", function () {
   var fixture = makeFixture();
   var ball = fixture.ball;
   ball.position.x = 200;
   ball.position.y = 300;
-  ball.position.z = fixture.config.ball.shadowMaxHeight;
+  ball.position.z = 40;
   var calls: number[][] = [];
   var ctx = canvasContext({
-    globalAlpha: 1,
     drawImage: function (...args: unknown[]) {
       calls.push(args.slice(1).map(Number));
     },
@@ -91,11 +90,24 @@ test("Ball keeps its shadow grounded while its body rises", function () {
 
   assertEqual(calls.length, 2);
   assertEqual(calls[0][0], fixture.config.ball.shadowFrame * 16);
-  assertNear(calls[0][5] + calls[0][7] / 2, ball.position.y, 0.0001);
   assertNear(
-    calls[1][5],
-    ball.position.y - ball.ballRadius - ball.position.z,
+    calls[0][4],
+    ball.position.x -
+      ball.ballRadius +
+      fixture.config.ball.shadowOffset +
+      ball.position.z,
     0.0001,
   );
-  assertTrue(calls[0][7] < ball.ballRadius * 2);
+  assertNear(
+    calls[0][5],
+    ball.position.y -
+      ball.ballRadius +
+      fixture.config.ball.shadowOffset +
+      ball.position.z,
+    0.0001,
+  );
+  assertEqual(calls[0][6], ball.ballRadius * 2);
+  assertEqual(calls[0][7], ball.ballRadius * 2);
+  assertEqual(calls[1][4], ball.position.x - ball.ballRadius);
+  assertEqual(calls[1][5], ball.position.y - ball.ballRadius);
 });

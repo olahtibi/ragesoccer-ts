@@ -171,13 +171,14 @@ test("Camera overlay keeps FPS separate from the top-left score strip", function
     restore: function () {},
   });
 
-  fixture.config.assets.canvas.width = 640;
+  fixture.config.viewport.width = 640;
+  fixture.config.assets.canvas.width = 1280;
   fixture.game.camera.renderOverlay(ctx, 60);
   assertEqual(fpsPositions[fpsPositions.length - 1].x, 598);
   assertEqual(fpsPositions[fpsPositions.length - 1].y, 18);
 
   fpsPositions.length = 0;
-  fixture.config.assets.canvas.width = 240;
+  fixture.config.viewport.width = 240;
   fixture.game.camera.renderOverlay(ctx, 60);
   assertEqual(fpsPositions[fpsPositions.length - 1].x, 198);
   assertEqual(fpsPositions[fpsPositions.length - 1].y, 52);

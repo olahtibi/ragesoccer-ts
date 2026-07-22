@@ -22,7 +22,7 @@ class Ball {
   private readonly heldOffsetX: number;
   private readonly heldOffsetY: number;
   private readonly shadowFrame: number;
-  private readonly shadowMaxHeight: number;
+  private readonly shadowOffset: number;
   private nextKickImpulseMultiplier: number;
 
   public constructor(
@@ -47,7 +47,7 @@ class Ball {
     this.heldOffsetX = ballConfig.heldOffsetX;
     this.heldOffsetY = ballConfig.heldOffsetY;
     this.shadowFrame = ballConfig.shadowFrame;
-    this.shadowMaxHeight = ballConfig.shadowMaxHeight;
+    this.shadowOffset = ballConfig.shadowOffset;
     this.nextKickImpulseMultiplier = 1;
   }
 
@@ -84,23 +84,17 @@ class Ball {
   public drawShadow(ctx: CanvasRenderingContext2D): void {
     if (this.heldBy != null) return;
     const size = this.ballRadius * 2;
-    const heightRatio = Math.min(1, this.position.z / this.shadowMaxHeight);
-    const scale = 1 - heightRatio * 0.45;
-    const shadowSize = size * scale;
-    const previousAlpha = ctx.globalAlpha;
-    ctx.globalAlpha = 1 - heightRatio * 0.7;
     ctx.drawImage(
       this.imgBall,
       size * this.shadowFrame,
       0,
       size,
       size,
-      this.position.x - shadowSize / 2,
-      this.position.y - shadowSize / 2,
-      shadowSize,
-      shadowSize,
+      this.position.x - this.ballRadius + this.shadowOffset + this.position.z,
+      this.position.y - this.ballRadius + this.shadowOffset + this.position.z,
+      size,
+      size,
     );
-    ctx.globalAlpha = previousAlpha;
   }
 
   public drawBody(ctx: CanvasRenderingContext2D): void {
@@ -130,7 +124,7 @@ class Ball {
       size,
       size,
       this.position.x - this.ballRadius,
-      this.position.y - this.ballRadius - this.position.z,
+      this.position.y - this.ballRadius,
       size,
       size,
     );

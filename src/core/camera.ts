@@ -104,7 +104,9 @@ class Camera {
     ctx.restore();
     ctx.save();
 
-    const screenWidth = ctx.canvas?.width || this.config.viewport.width;
+    // Overlay drawing happens in CSS-pixel space even when the canvas backing
+    // store is enlarged for devicePixelRatio.
+    const screenWidth = this.config.viewport.width;
     const margin = 8;
     const panelWidth = Math.max(0, Math.min(176, screenWidth - margin * 2));
     const panelHeight = 28;
