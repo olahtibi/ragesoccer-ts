@@ -1,4 +1,7 @@
 .game-page {
+  background: #000;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   overflow: hidden;
   position: relative;
@@ -30,7 +33,15 @@
     padding: 24px;
     position: fixed;
     text-align: center;
+    -webkit-text-fill-color: #fff;
     z-index: 9999;
+  }
+  #rotateNotice span {
+    color: #fff;
+    display: block;
+    opacity: 1;
+    position: relative;
+    visibility: visible;
   }
   #myCanvas {
     display: none;

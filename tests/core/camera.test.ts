@@ -84,6 +84,32 @@ test("Camera lerps toward focus target and reports arrival", function () {
   assertTrue(camera.hasArrivedAtFocus());
 });
 
+test("Camera centers the pitch when the viewport is wider than the world", function () {
+  var fixture = makeFixture();
+  fixture.config.viewport.width = 800;
+  fixture.config.viewport.height = 400;
+  fixture.config.viewport.ratio = 1;
+  var camera = new Camera(fixture.config, fixture.stadium);
+  var translateX = Number.NaN;
+  var ctx = canvasContext({
+    save: function () {},
+    scale: function () {},
+    translate: function (x: number) {
+      translateX = x;
+    },
+  });
+
+  camera.windowToViewport(ctx);
+
+  var visibleWidth =
+    fixture.config.viewport.width / fixture.config.computeScaleBy();
+  assertNear(
+    translateX,
+    (visibleWidth - fixture.config.pitch.stadiumWidth) / 2,
+    0.0001,
+  );
+});
+
 test("Camera overlay renders team-owned scores and supplied FPS", function () {
   var fixture = makeFixture();
   fixture.homeTeam.score = 2;

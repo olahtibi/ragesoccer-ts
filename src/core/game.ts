@@ -20,7 +20,7 @@ import { PositioningController } from "./restarts/positioningController";
 import { RestartController } from "./restarts/restartController";
 import { RestartRegistry } from "./restarts/restartRegistry";
 import { ThrowInRestart } from "./restarts/throwInRestart";
-export { Game, createContext, createGame };
+export { Game, createContext, createGame, resizeContext };
 
 export interface TeamRuntime {
   readonly team: Team;
@@ -210,14 +210,31 @@ function createGame(config: Configuration): Game {
 
 function createContext(game: Game): CanvasRenderingContext2D {
   const canvas = game.config.assets.canvas;
-  const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = Math.round(game.config.viewport.width * pixelRatio);
-  canvas.height = Math.round(game.config.viewport.height * pixelRatio);
-  canvas.style.width = `${game.config.viewport.width}px`;
-  canvas.style.height = `${game.config.viewport.height}px`;
   const ctx = canvas.getContext("2d");
   if (ctx == null) throw new Error("Canvas 2D context is unavailable");
+  resizeContext(
+    game,
+    ctx,
+    game.config.viewport.width,
+    game.config.viewport.height,
+  );
+  return ctx;
+}
+
+function resizeContext(
+  game: Game,
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const canvas = game.config.assets.canvas;
+  const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+  game.config.viewport.width = width;
+  game.config.viewport.height = height;
+  canvas.width = Math.round(width * pixelRatio);
+  canvas.height = Math.round(height * pixelRatio);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  return ctx;
 }

@@ -229,12 +229,19 @@ export class Configuration {
 
   public constructor(
     readonly assets: GameAssets,
-    options: { search?: string; width?: number; height?: number } = {},
+    options: {
+      search?: string;
+      width?: number;
+      height?: number;
+      viewportRatio?: number;
+    } = {},
   ) {
     this.viewport = {
       width: options.width ?? window.innerWidth,
       height: options.height ?? window.innerHeight,
-      ratio: 0.7,
+      ratio:
+        options.viewportRatio ??
+        (window.matchMedia?.("(pointer: coarse)").matches ? 1 : 0.7),
     };
     this.applyQueryOptions(options.search ?? window.location.search);
   }
@@ -266,6 +273,9 @@ export class Configuration {
         ? this.viewport.width / (this.pitch.stadiumWidth * this.viewport.ratio)
         : this.viewport.height /
           (this.pitch.stadiumHeight * this.viewport.ratio);
+    if (this.viewport.ratio >= 1) {
+      return Math.max(1 / WORLD_SCALE, scale);
+    }
     return Math.max(
       1 / WORLD_SCALE,
       Math.round(scale * WORLD_SCALE) / WORLD_SCALE,

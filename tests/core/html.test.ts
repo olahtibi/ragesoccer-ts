@@ -45,9 +45,9 @@ test("Game page loads one module entry with canvas assets and mobile rotation UI
   assertTrue(html.includes('src="/src/main.ts"'));
   assertTrue(html.includes('src="assets/images/pitch-v2.png"'));
   assertTrue(html.includes('src="assets/images/player-sprite-away-v2.png"'));
-  assertTrue(
-    main.includes("createGame(new Configuration(loadBrowserAssets()))"),
-  );
+  assertTrue(main.includes("createGame("));
+  assertTrue(main.includes("new Configuration(loadBrowserAssets()"));
+  assertTrue(main.includes("visualViewport"));
   assertTrue(main.includes("requestAnimationFrame"));
   assertTrue(styles.includes("(orientation: portrait) and (pointer: coarse)"));
 });

@@ -42,37 +42,34 @@ class Camera {
     target: Vector2d,
     scaleBy: number,
   ): Vector2d {
-    const position = new Vector2d(0, 0);
-    if (
-      target.x * scaleBy >=
-      this.config.pitch.stadiumWidth * scaleBy - this.config.viewport.width / 2
-    ) {
-      position.x =
-        (this.config.viewport.width -
-          this.config.pitch.stadiumWidth * scaleBy) /
-        scaleBy;
-    } else if (target.x * scaleBy <= this.config.viewport.width / 2) {
-      position.x = 0;
-    } else {
-      position.x =
-        (this.config.viewport.width / 2 - target.x * scaleBy) / scaleBy;
+    return new Vector2d(
+      this.viewportAxisPosition(
+        target.x,
+        this.config.pitch.stadiumWidth,
+        this.config.viewport.width,
+        scaleBy,
+      ),
+      this.viewportAxisPosition(
+        target.y,
+        this.config.pitch.stadiumHeight,
+        this.config.viewport.height,
+        scaleBy,
+      ),
+    );
+  }
+
+  private viewportAxisPosition(
+    target: number,
+    worldSize: number,
+    viewportSize: number,
+    scaleBy: number,
+  ): number {
+    const visibleWorldSize = viewportSize / scaleBy;
+    if (visibleWorldSize >= worldSize) {
+      return (visibleWorldSize - worldSize) / 2;
     }
-    if (
-      target.y * scaleBy >=
-      this.config.pitch.stadiumHeight * scaleBy -
-        this.config.viewport.height / 2
-    ) {
-      position.y =
-        (this.config.viewport.height -
-          this.config.pitch.stadiumHeight * scaleBy) /
-        scaleBy;
-    } else if (target.y * scaleBy <= this.config.viewport.height / 2) {
-      position.y = 0;
-    } else {
-      position.y =
-        (this.config.viewport.height / 2 - target.y * scaleBy) / scaleBy;
-    }
-    return position;
+    const desired = visibleWorldSize / 2 - target;
+    return Math.max(visibleWorldSize - worldSize, Math.min(0, desired));
   }
 
   public setFocusTarget(target: Vector2d): void {
