@@ -183,6 +183,26 @@ test("Camera overlay stays in screen space across camera positions and zoom", fu
   );
 });
 
+test("Camera uses a smaller score overlay for a mobile viewport", function () {
+  var fixture = makeFixture();
+  fixture.config.viewport.mobile = true;
+  var panels: Array<{ width: number; height: number }> = [];
+  var ctx = canvasContext({
+    fillRect: function (_x: number, _y: number, width: number, height: number) {
+      panels.push({ width: width, height: height });
+    },
+    fillText: function () {},
+    save: function () {},
+    restore: function () {},
+  });
+
+  fixture.game.camera.renderOverlay(ctx, 60);
+
+  assertEqual(panels[0].width, 132);
+  assertEqual(panels[0].height, 21);
+  assertTrue(ctx.font.includes("10.5px"));
+});
+
 test("Camera overlay keeps FPS separate from the top-left score strip", function () {
   var fixture = makeFixture();
   fixture.game.camera.showStats = true;

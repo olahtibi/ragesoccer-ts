@@ -42,6 +42,7 @@ export class Configuration {
     width: number;
     height: number;
     ratio: number;
+    mobile: boolean;
   };
 
   readonly physics = {
@@ -234,14 +235,18 @@ export class Configuration {
       width?: number;
       height?: number;
       viewportRatio?: number;
+      mobile?: boolean;
     } = {},
   ) {
+    const mobile =
+      options.mobile ??
+      window.matchMedia?.("(pointer: coarse)").matches ??
+      false;
     this.viewport = {
       width: options.width ?? window.innerWidth,
       height: options.height ?? window.innerHeight,
-      ratio:
-        options.viewportRatio ??
-        (window.matchMedia?.("(pointer: coarse)").matches ? 1 : 0.7),
+      ratio: options.viewportRatio ?? (mobile ? 1 : 0.7),
+      mobile: mobile,
     };
     this.applyQueryOptions(options.search ?? window.location.search);
   }

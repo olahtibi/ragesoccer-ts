@@ -104,9 +104,13 @@ class Camera {
     // Overlay drawing happens in CSS-pixel space even when the canvas backing
     // store is enlarged for devicePixelRatio.
     const screenWidth = this.config.viewport.width;
-    const margin = 8;
-    const panelWidth = Math.max(0, Math.min(176, screenWidth - margin * 2));
-    const panelHeight = 28;
+    const hudScale = this.config.viewport.mobile ? 0.75 : 1;
+    const margin = Math.round(8 * hudScale);
+    const panelWidth = Math.max(
+      0,
+      Math.min(176 * hudScale, screenWidth - margin * 2),
+    );
+    const panelHeight = 28 * hudScale;
     const panelX = margin;
     const panelY = margin;
 
@@ -135,6 +139,7 @@ class Camera {
   ): void {
     this.drawHudPanel(ctx, x, y, width, height);
 
+    const scale = height / 28;
     const centerY = y + height / 2;
     ctx.fillStyle = "#e4473a";
     ctx.fillRect(x + 1, y + 1, 4, Math.max(0, height - 2));
@@ -143,27 +148,27 @@ class Camera {
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = 'bold 11px "Arial Narrow", Arial, sans-serif';
+    ctx.font = `bold ${11 * scale}px "Arial Narrow", Arial, sans-serif`;
     this.drawHudText(
       ctx,
       this.stadium.homeTeam.shortName,
-      x + 27,
+      x + 27 * scale,
       centerY,
       "#ffffff",
     );
     this.drawHudText(
       ctx,
       this.stadium.awayTeam.shortName,
-      x + width - 27,
+      x + width - 27 * scale,
       centerY,
       "#ffffff",
     );
 
-    ctx.font = 'bold 14px "Arial Narrow", Arial, sans-serif';
+    ctx.font = `bold ${14 * scale}px "Arial Narrow", Arial, sans-serif`;
     this.drawHudText(
       ctx,
       String(this.stadium.homeTeam.score),
-      x + 65,
+      x + 65 * scale,
       centerY,
       "#ffffff",
     );
@@ -171,7 +176,7 @@ class Camera {
     this.drawHudText(
       ctx,
       String(this.stadium.awayTeam.score),
-      x + width - 65,
+      x + width - 65 * scale,
       centerY,
       "#ffffff",
     );

@@ -1,13 +1,18 @@
+html,
 .game-page {
-  background: #000;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
   margin: 0;
   overflow: hidden;
+  overscroll-behavior: none;
+  width: 100%;
+}
+.game-page {
   position: relative;
+  touch-action: none;
 }
 #myCanvas {
   border: 1px solid #000;
+  box-sizing: border-box;
   display: block;
 }
 .preloaded-asset {
@@ -28,20 +33,16 @@
     font:
       20px Arial,
       sans-serif;
-    inset: 0;
+    box-sizing: border-box;
+    height: 100%;
     justify-content: center;
+    left: 0;
     padding: 24px;
     position: fixed;
     text-align: center;
-    -webkit-text-fill-color: #fff;
+    top: 0;
+    width: 100%;
     z-index: 9999;
-  }
-  #rotateNotice span {
-    color: #fff;
-    display: block;
-    opacity: 1;
-    position: relative;
-    visibility: visible;
   }
   #myCanvas {
     display: none;
