@@ -31,17 +31,37 @@ class Stadium {
     showHumanPlayerMarker: boolean = true,
   ): void {
     ctx.drawImage(this.imgStadium, 0, 0);
-    if (this.ball.heldBy == null) this.ball.draw(ctx);
+    if (this.ball.heldBy == null) this.ball.drawShadow(ctx);
+    const bodies: Array<{
+      groundY: number;
+      order: number;
+      draw: () => void;
+    }> = [];
     for (let i = 0; i < this.players.length; i++) {
-      if (
-        showHumanPlayerMarker &&
-        this.players[i] === this.homeTeam.humanPlayer
-      ) {
-        this.drawHumanPlayerMarker(ctx, this.players[i]);
-      }
-      this.players[i].draw(ctx);
+      const player = this.players[i];
+      bodies.push({
+        groundY: player.position.y,
+        order: i,
+        draw: () => {
+          if (showHumanPlayerMarker && player === this.homeTeam.humanPlayer) {
+            this.drawHumanPlayerMarker(ctx, player);
+          }
+          player.draw(ctx);
+        },
+      });
     }
-    if (this.ball.heldBy != null) this.ball.draw(ctx);
+    if (this.ball.heldBy == null) {
+      bodies.push({
+        groundY: this.ball.position.y,
+        order: this.players.length,
+        draw: () => this.ball.drawBody(ctx),
+      });
+    }
+    bodies.sort(
+      (left, right) => left.groundY - right.groundY || left.order - right.order,
+    );
+    for (const body of bodies) body.draw();
+    if (this.ball.heldBy != null) this.ball.drawBody(ctx);
   }
 
   // Private helpers
@@ -50,10 +70,11 @@ class Stadium {
     ctx: CanvasRenderingContext2D,
     player: Player,
   ): void {
-    const centerX = player.position.x - 1;
-    const centerY = player.position.y - 2;
-    const outerRadius = 10;
-    const innerRadius = 4;
+    const marker = this.homeTeam.config.player;
+    const centerX = player.position.x + marker.markerOffsetX;
+    const centerY = player.position.y + marker.markerOffsetY;
+    const outerRadius = marker.markerOuterRadius;
+    const innerRadius = marker.markerInnerRadius;
     const points = 5;
     ctx.beginPath();
     for (let i = 0; i < points * 2; i++) {
@@ -68,7 +89,7 @@ class Stadium {
       }
     }
     ctx.closePath();
-    ctx.lineWidth = 1;
+    ctx.lineWidth = marker.markerLineWidth;
     ctx.strokeStyle = "rgba(255, 255, 0, 0.5)";
     ctx.stroke();
   }

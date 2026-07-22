@@ -1,6 +1,6 @@
 import { Vector2 as Vector2d } from "../math/vector";
 import type { Vector2 } from "../math/vector";
-import type { Configuration } from "../core/configuration";
+import { world, type Configuration } from "../core/configuration";
 import type { TeamAiState, TeamSide } from "../types";
 export { Formation };
 
@@ -169,7 +169,9 @@ class Formation {
       progress = this.config.ai.kickoffMidfielderProgress;
     }
 
-    const x = kickoffTaker ? centerX : centerX + this.lane(index, count) * 90;
+    const x = kickoffTaker
+      ? centerX
+      : centerX + this.lane(index, count) * world(90);
     const y = centerY + attackDir * progress;
     return this.clampToField(new Vector2d(x, y));
   }
@@ -190,7 +192,7 @@ class Formation {
   private nonKickingStrikerProgress(index: number, count: number): number {
     const radiusX = this.config.pitch.centerCircleRadiusX;
     const radiusY = this.config.pitch.centerCircleRadiusY;
-    const xOffset = this.lane(index, count) * 90;
+    const xOffset = this.lane(index, count) * world(90);
     const normalizedX = Math.min(1, Math.abs(xOffset) / radiusX);
     const boundaryY =
       radiusY * Math.sqrt(Math.max(0, 1 - normalizedX * normalizedX));

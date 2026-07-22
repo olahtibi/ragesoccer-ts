@@ -5,7 +5,7 @@ import {
   CornerFormation,
   type CornerAssignment,
 } from "../../src/ai/cornerFormation";
-import type { Configuration } from "../../src/core/configuration";
+import { world, type Configuration } from "../../src/core/configuration";
 import { math as MathLib } from "../../src/math/math";
 import type { Vector2 } from "../../src/math/vector";
 
@@ -21,7 +21,7 @@ test("Formation returns one position per player for supported team sizes", funct
 
 test("Formation mirrors home and away around configured center line", function () {
   var config = makeConfig({ homeTeamSize: 3, awayTeamSize: 3 });
-  config.pitch.aiCenterY = 410;
+  config.pitch.aiCenterY = world(410);
   var formation = new Formation(config);
 
   var home = formation.positions("attack", "home", 3);
@@ -51,7 +51,7 @@ test("Formation uses relative kickoff states for both teams", function () {
   var away = formation.positions("kickoffOpponent", "away", 3);
 
   assertTrue(home[2].y < config.pitch.aiCenterY);
-  assertTrue(Math.abs(home[2].y - config.pitch.aiCenterY) <= 25);
+  assertTrue(Math.abs(home[2].y - config.pitch.aiCenterY) <= world(25));
   assertTrue(away[2].y < config.pitch.aiCenterY);
   assertTrue(outsideCenterEllipse(config, away[2]));
 });
@@ -64,7 +64,7 @@ test("Formation mirrors relative states for an away kickoff", function () {
   var away = formation.positions("kickoffUs", "away", 3);
 
   assertTrue(away[2].y > config.pitch.aiCenterY);
-  assertTrue(Math.abs(away[2].y - config.pitch.aiCenterY) <= 25);
+  assertTrue(Math.abs(away[2].y - config.pitch.aiCenterY) <= world(25));
   assertTrue(home[2].y > config.pitch.aiCenterY);
   assertTrue(outsideCenterEllipse(config, home[2]));
 });
@@ -87,8 +87,8 @@ test("Formation gives one 5v5 striker a dedicated close kickoff position", funct
     config.pitch.aiCenterY + config.restarts.kickoffTakerDistance,
   );
 
-  assertEqual(home[4].x, config.pitch.initialBallPosition.x + 45);
-  assertEqual(home[4].y, config.pitch.aiCenterY + 20);
+  assertEqual(home[4].x, config.pitch.initialBallPosition.x + world(45));
+  assertEqual(home[4].y, config.pitch.aiCenterY + world(20));
   assertTrue(
     MathLib.computeDistance(home[3], config.pitch.initialBallPosition) <
       MathLib.computeDistance(home[4], config.pitch.initialBallPosition),
@@ -191,10 +191,10 @@ test("Formation separates kickoff striker and midfield lines", function () {
   var awayKicking = formation.positions("kickoffUs", "away", 11);
   var awayDefending = formation.positions("kickoffOpponent", "away", 11);
 
-  assertTrue(homeKicking[5].y - homeKicking[10].y >= 75);
-  assertTrue(homeDefending[5].y - homeDefending[9].y >= 60);
-  assertTrue(awayKicking[10].y - awayKicking[5].y >= 75);
-  assertTrue(awayDefending[9].y - awayDefending[5].y >= 60);
+  assertTrue(homeKicking[5].y - homeKicking[10].y >= world(75));
+  assertTrue(homeDefending[5].y - homeDefending[9].y >= world(60));
+  assertTrue(awayKicking[10].y - awayKicking[5].y >= world(75));
+  assertTrue(awayDefending[9].y - awayDefending[5].y >= world(60));
 });
 
 test("Formation keeps kickoff and defensive lines vertically sparse", function () {
@@ -205,18 +205,18 @@ test("Formation keeps kickoff and defensive lines vertically sparse", function (
   var homeDefense = formation.positions("defense", "home", 11);
   var awayDefense = formation.positions("defense", "away", 11);
 
-  assertTrue(homeKickoff[1].y - homeKickoff[5].y >= 100);
-  assertTrue(awayKickoff[5].y - awayKickoff[1].y >= 100);
-  assertTrue(homeDefense[1].y - homeDefense[5].y >= 160);
-  assertTrue(homeDefense[5].y - homeDefense[9].y >= 120);
-  assertTrue(awayDefense[5].y - awayDefense[1].y >= 160);
-  assertTrue(awayDefense[9].y - awayDefense[5].y >= 120);
+  assertTrue(homeKickoff[1].y - homeKickoff[5].y >= world(100));
+  assertTrue(awayKickoff[5].y - awayKickoff[1].y >= world(100));
+  assertTrue(homeDefense[1].y - homeDefense[5].y >= world(160));
+  assertTrue(homeDefense[5].y - homeDefense[9].y >= world(120));
+  assertTrue(awayDefense[5].y - awayDefense[1].y >= world(160));
+  assertTrue(awayDefense[9].y - awayDefense[5].y >= world(120));
 
   assertTrue(
-    config.ai.goalieDistance + homeDefense[0].y - homeDefense[1].y >= 60,
+    config.ai.goalieDistance + homeDefense[0].y - homeDefense[1].y >= world(60),
   );
   assertTrue(
-    config.ai.goalieDistance + awayDefense[1].y - awayDefense[0].y >= 60,
+    config.ai.goalieDistance + awayDefense[1].y - awayDefense[0].y >= world(60),
   );
 });
 
@@ -226,7 +226,7 @@ test("Formation places goalkeepers at the configured goal-line distance", functi
   var home = formation.positions("defense", "home", 2);
   var away = formation.positions("defense", "away", 2);
 
-  assertEqual(config.ai.goalieDistance, 3);
+  assertEqual(config.ai.goalieDistance, world(3));
   assertNear(
     home[0].y,
     config.pitch.goalBottomTopLeft.y - config.ai.goalieDistance,
@@ -238,9 +238,9 @@ test("Formation places goalkeepers at the configured goal-line distance", functi
     0.0001,
   );
 
-  config.ai.goalieDistance = 8;
+  config.ai.goalieDistance = world(8);
   home = formation.positions("defense", "home", 2);
-  assertNear(home[0].y, config.pitch.goalBottomTopLeft.y - 8, 0.0001);
+  assertNear(home[0].y, config.pitch.goalBottomTopLeft.y - world(8), 0.0001);
 });
 
 test("Formation defense shifts toward own goal and attack shifts toward opponent goal", function () {

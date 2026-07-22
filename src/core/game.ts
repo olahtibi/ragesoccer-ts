@@ -210,10 +210,14 @@ function createGame(config: Configuration): Game {
 
 function createContext(game: Game): CanvasRenderingContext2D {
   const canvas = game.config.assets.canvas;
-  canvas.width = game.config.viewport.width;
-  canvas.height = game.config.viewport.height;
+  const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.round(game.config.viewport.width * pixelRatio);
+  canvas.height = Math.round(game.config.viewport.height * pixelRatio);
+  canvas.style.width = `${game.config.viewport.width}px`;
+  canvas.style.height = `${game.config.viewport.height}px`;
   const ctx = canvas.getContext("2d");
   if (ctx == null) throw new Error("Canvas 2D context is unavailable");
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   ctx.imageSmoothingEnabled = false;
   return ctx;
 }

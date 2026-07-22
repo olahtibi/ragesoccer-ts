@@ -69,3 +69,27 @@ test("Stadium can hide the human player marker while movement is locked", functi
 
   assertEqual(strokes, 0);
 });
+
+test("Stadium depth sorts player and ball bodies by ground position", function () {
+  var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
+  var order: string[] = [];
+  fixture.homePlayers[0].position.y = 300;
+  fixture.awayPlayers[0].position.y = 100;
+  fixture.ball.position.y = 200;
+  fixture.homePlayers[0].draw = function () {
+    order.push("home");
+  };
+  fixture.awayPlayers[0].draw = function () {
+    order.push("away");
+  };
+  fixture.ball.drawShadow = function () {
+    order.push("shadow");
+  };
+  fixture.ball.drawBody = function () {
+    order.push("ball");
+  };
+
+  fixture.stadium.draw(canvasContext({ drawImage: function () {} }), false);
+
+  assertEqual(order.join(","), "shadow,away,ball,home");
+});

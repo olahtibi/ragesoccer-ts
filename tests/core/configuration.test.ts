@@ -3,6 +3,7 @@ import { makeConfig } from "../helpers";
 import { Vector2 } from "../../src/math/vector";
 import { Ball } from "../../src/world/ball";
 import { Player } from "../../src/world/player";
+import { world } from "../../src/core/configuration";
 
 // Don't make asserts on how test tool works
 // test("Test helper overrides production team-size defaults", function() {
@@ -20,26 +21,26 @@ test("Configuration defaults strength and team-size options", function () {
   var config = makeConfig({ search: "" });
   assertEqual(config.teams.homeStrength, 6);
   assertEqual(config.teams.awayStrength, 6);
-  assertEqual(config.ai.formationDefenderProgress, -200);
+  assertEqual(config.ai.formationDefenderProgress, world(-200));
   assertEqual(config.ai.formationMidfielderProgress, 0);
-  assertEqual(config.ai.formationStrikerProgress, 130);
-  assertEqual(config.ai.formationStateShift, 55);
-  assertEqual(config.ai.formationDefenderDefenseShift, 25);
-  assertEqual(config.ai.kickoffMidfielderProgress, -100);
+  assertEqual(config.ai.formationStrikerProgress, world(130));
+  assertEqual(config.ai.formationStateShift, world(55));
+  assertEqual(config.ai.formationDefenderDefenseShift, world(25));
+  assertEqual(config.ai.kickoffMidfielderProgress, world(-100));
   assertEqual(config.teams.homeSize, 11);
   assertEqual(config.teams.awaySize, 11);
   assertEqual(config.restarts.outOfPlayEnabled, true);
-  assertEqual(config.restarts.kickoffTakerDistance, 8);
+  assertEqual(config.restarts.kickoffTakerDistance, world(8));
   assertNear(config.restarts.outOfPlayDelaySeconds, 0.35, 0.0001);
   assertEqual(config.restarts.opponentDelaySeconds, 1);
   assertNear(config.cutscene.cameraLerp, 0.06, 0.0001);
   assertEqual(config.cutscene.goalCelebrationSeconds, 5);
   assertEqual(config.cutscene.goalFocusSeconds, 1);
-  assertEqual(config.restarts.cornerBoxSpacing, 34);
-  assertEqual(config.restarts.cornerBoxDepth, 45);
-  assertEqual(config.restarts.cornerLateRunReleaseDistance, 35);
-  assertEqual(config.restarts.throwInSpeed, 80);
-  assertEqual(config.restarts.throwInReceiverDistance, 40);
+  assertEqual(config.restarts.cornerBoxSpacing, world(34));
+  assertEqual(config.restarts.cornerBoxDepth, world(45));
+  assertEqual(config.restarts.cornerLateRunReleaseDistance, world(35));
+  assertEqual(config.restarts.throwInSpeed, world(80));
+  assertEqual(config.restarts.throwInReceiverDistance, world(40));
   assertEqual("playerStrength" in config, false);
   assertEqual("fieldLeft" in config, false);
   assertEqual("ballRadius" in config, false);
@@ -48,9 +49,21 @@ test("Configuration defaults strength and team-size options", function () {
 test("Configuration maps strength to velocity", function () {
   var config = makeConfig();
 
-  assertNear(config.strengthToVelocity(1), 35, 0.0001);
-  assertNear(config.strengthToVelocity(6), 51.6667, 0.0001);
-  assertNear(config.strengthToVelocity(10), 65, 0.0001);
+  assertNear(config.strengthToVelocity(1), world(35), 0.0001);
+  assertNear(config.strengthToVelocity(6), world(51.6666667), 0.0001);
+  assertNear(config.strengthToVelocity(10), world(65), 0.0001);
+});
+
+test("Configuration keeps legacy camera coverage at four-times world scale", function () {
+  var config = makeConfig();
+  config.viewport.width = 640;
+  config.viewport.height = 480;
+  config.viewport.ratio = 0.7;
+  assertNear(config.computeScaleBy(), 0.25, 0.0001);
+
+  config.viewport.width = 1440;
+  config.viewport.height = 900;
+  assertNear(config.computeScaleBy(), 0.75, 0.0001);
 });
 
 test("Configuration parses and clamps game options from query string", function () {

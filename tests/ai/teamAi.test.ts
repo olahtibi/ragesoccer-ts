@@ -4,6 +4,7 @@ import { CornerFormation } from "../../src/ai/cornerFormation";
 import type { TeamAi, TeamAiRestartContext } from "../../src/ai/teamAi";
 import { Vector2 as Vector2d } from "../../src/math/vector";
 import type { Vector2 } from "../../src/math/vector";
+import { world } from "../../src/core/configuration";
 
 function update(
   ai: TeamAi,
@@ -175,7 +176,7 @@ test("TeamAi prioritizes an intended receiver over the closer thrower", function
 test("TeamAi goalkeepers follow the ball across their goal line", function () {
   var fixture = makeFixture({ homeTeamSize: 3, awayTeamSize: 3 });
   fixture.homeTeam.humanPlayer = fixture.homePlayers[1];
-  fixture.ball.position.x = 320;
+  fixture.ball.position.x = world(320);
 
   update(fixture.homeTeamAi, false, true);
   update(fixture.awayTeamAi, false, true);

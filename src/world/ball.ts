@@ -22,7 +22,7 @@ class Ball {
   private readonly heldOffsetX: number;
   private readonly heldOffsetY: number;
   private readonly shadowFrame: number;
-  private readonly shadowOffset: number;
+  private readonly shadowMaxHeight: number;
   private nextKickImpulseMultiplier: number;
 
   public constructor(
@@ -47,7 +47,7 @@ class Ball {
     this.heldOffsetX = ballConfig.heldOffsetX;
     this.heldOffsetY = ballConfig.heldOffsetY;
     this.shadowFrame = ballConfig.shadowFrame;
-    this.shadowOffset = ballConfig.shadowOffset;
+    this.shadowMaxHeight = ballConfig.shadowMaxHeight;
     this.nextKickImpulseMultiplier = 1;
   }
 
@@ -77,6 +77,33 @@ class Ball {
   }
 
   public draw(ctx: CanvasRenderingContext2D): void {
+    this.drawShadow(ctx);
+    this.drawBody(ctx);
+  }
+
+  public drawShadow(ctx: CanvasRenderingContext2D): void {
+    if (this.heldBy != null) return;
+    const size = this.ballRadius * 2;
+    const heightRatio = Math.min(1, this.position.z / this.shadowMaxHeight);
+    const scale = 1 - heightRatio * 0.45;
+    const shadowSize = size * scale;
+    const previousAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = 1 - heightRatio * 0.7;
+    ctx.drawImage(
+      this.imgBall,
+      size * this.shadowFrame,
+      0,
+      size,
+      size,
+      this.position.x - shadowSize / 2,
+      this.position.y - shadowSize / 2,
+      shadowSize,
+      shadowSize,
+    );
+    ctx.globalAlpha = previousAlpha;
+  }
+
+  public drawBody(ctx: CanvasRenderingContext2D): void {
     if (this.heldBy != null) {
       const held = this.heldPosition();
       this.holdAnimationAt(held);
@@ -98,23 +125,12 @@ class Ball {
     const size = this.ballRadius * 2;
     ctx.drawImage(
       this.imgBall,
-      size * this.shadowFrame,
-      0,
-      size,
-      size,
-      this.position.x - this.ballRadius + this.shadowOffset + this.position.z,
-      this.position.y - this.ballRadius + this.shadowOffset + this.position.z,
-      size,
-      size,
-    );
-    ctx.drawImage(
-      this.imgBall,
       this.phaseIndex * size,
       0,
       size,
       size,
       this.position.x - this.ballRadius,
-      this.position.y - this.ballRadius,
+      this.position.y - this.ballRadius - this.position.z,
       size,
       size,
     );

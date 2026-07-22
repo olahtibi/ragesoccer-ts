@@ -214,7 +214,7 @@ class Camera {
     width: number,
     height: number,
   ): void {
-    ctx.fillStyle = "rgba(72, 72, 72, 0.4)";
+    ctx.fillStyle = "rgba(72, 72, 72, 0.3)";
     ctx.fillRect(x, y, width, height);
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.65)";

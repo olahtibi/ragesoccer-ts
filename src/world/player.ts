@@ -6,8 +6,12 @@ export { Player };
 
 export interface SpriteFrame {
   phaseIndex: number;
+  state: PlayerAnimationState;
+  topLeftX: number;
   topLeftY: number;
 }
+
+export type PlayerAnimationState = "idle" | "run" | "kick";
 
 class Player {
   public readonly imgPlayer: HTMLImageElement;
@@ -30,14 +34,23 @@ class Player {
   public readonly animationDirectionConfidenceThreshold: number;
   public readonly animationIdleGraceSeconds: number;
   public readonly animationMaxDeltaSeconds: number;
-  public readonly spriteSourceRowHeight: number;
   public phaseIndex: number;
   public stepDistance: number;
   public readonly teamSide: TeamSide;
   private facingTarget: Vector2d | null;
   private readonly stepPxPerPhase: number;
-  private readonly spritePhases: number;
+  private readonly spriteFrameWidth: number;
+  private readonly spriteFrameHeight: number;
+  private readonly idleRowOffset: number;
+  private readonly runRowOffset: number;
+  private readonly kickRowOffset: number;
+  private readonly runPhases: number;
+  private readonly kickPhases: number;
+  private readonly kickDurationSeconds: number;
   private readonly lastAnimationPosition: Vector2d;
+  private kickStartedTimeMs: number | null;
+  private kickDirectionX: number;
+  private kickDirectionY: number;
 
   public constructor(
     imgPlayer: HTMLImageElement,
@@ -69,9 +82,15 @@ class Player {
       playerConfig.animationDirectionConfidenceThreshold;
     this.animationIdleGraceSeconds = playerConfig.animationIdleGraceSeconds;
     this.animationMaxDeltaSeconds = playerConfig.animationMaxDeltaSeconds;
-    this.spriteSourceRowHeight = playerConfig.spriteSourceRowHeight;
     this.stepPxPerPhase = playerConfig.stepPxPerPhase;
-    this.spritePhases = playerConfig.spritePhases;
+    this.spriteFrameWidth = playerConfig.spriteFrameWidth;
+    this.spriteFrameHeight = playerConfig.spriteFrameHeight;
+    this.idleRowOffset = playerConfig.idleRowOffset;
+    this.runRowOffset = playerConfig.runRowOffset;
+    this.kickRowOffset = playerConfig.kickRowOffset;
+    this.runPhases = playerConfig.runPhases;
+    this.kickPhases = playerConfig.kickPhases;
+    this.kickDurationSeconds = playerConfig.kickDurationSeconds;
     this.lastAnimationPosition = new Vector2d(this.position.x, this.position.y);
     // Walk-cycle state advances with rendered travel rather than wall-clock
     // time, so the animation naturally freezes when the player does.
@@ -79,6 +98,9 @@ class Player {
     this.stepDistance = 0;
     this.teamSide = teamSide;
     this.facingTarget = null;
+    this.kickStartedTimeMs = null;
+    this.kickDirectionX = this.facingX;
+    this.kickDirectionY = this.facingY;
   }
 
   public stop(): void {
@@ -148,6 +170,13 @@ class Player {
       return performance.now();
     }
     return Date.now();
+  }
+
+  public playKick(nowMs: number | null = null): void {
+    this.updateFacing();
+    this.kickDirectionX = this.facingX;
+    this.kickDirectionY = this.facingY;
+    this.kickStartedTimeMs = nowMs ?? this.animationNowMs();
   }
 
   public animationElapsedSeconds(nowMs: number): number {
@@ -226,7 +255,7 @@ class Player {
     if (distance > 0) {
       this.stepDistance += distance;
       while (this.stepDistance >= this.stepPxPerPhase) {
-        this.phaseIndex = (this.phaseIndex + 1) % this.spritePhases;
+        this.phaseIndex = (this.phaseIndex + 1) % this.runPhases;
         this.stepDistance -= this.stepPxPerPhase;
       }
     }
@@ -235,11 +264,10 @@ class Player {
   }
 
   public draw(ctx: CanvasRenderingContext2D): void {
-    const topLeftX = 0;
     const sprite = this.spriteFrame();
     ctx.drawImage(
       this.imgPlayer,
-      topLeftX,
+      sprite.topLeftX,
       sprite.topLeftY,
       this.playerSpriteWidth,
       this.playerSpriteHeight,
@@ -251,37 +279,51 @@ class Player {
   }
 
   public spriteFrame(animationTimeMs: number | null = null): SpriteFrame {
-    this.updateAnimation(animationTimeMs);
-    const phaseIndex = this.animationMoving ? this.phaseIndex : 0;
-    let topLeftY = 0;
-    if (this.animationFacingY == -1 && this.animationFacingX == 0) {
-      // NORTH
-      topLeftY = (6 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == 1 && this.animationFacingX == 0) {
-      // SOUTH
-      topLeftY = (7 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == 0 && this.animationFacingX == -1) {
-      // WEST
-      topLeftY = (1 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == 0 && this.animationFacingX == 1) {
-      // EAST
-      topLeftY = (0 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == -1 && this.animationFacingX == 1) {
-      // NE
-      topLeftY = (5 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == -1 && this.animationFacingX == -1) {
-      // NW
-      topLeftY = (4 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == 1 && this.animationFacingX == 1) {
-      // SE
-      topLeftY = (3 * 3 + phaseIndex) * this.spriteSourceRowHeight;
-    } else if (this.animationFacingY == 1 && this.animationFacingX == -1) {
-      // SW
-      topLeftY = (2 * 3 + phaseIndex) * this.spriteSourceRowHeight;
+    const nowMs = animationTimeMs ?? this.animationNowMs();
+    this.updateAnimation(nowMs);
+    let state: PlayerAnimationState = this.animationMoving ? "run" : "idle";
+    let phaseIndex = this.animationMoving ? this.phaseIndex : 0;
+    let directionX = this.animationFacingX;
+    let directionY = this.animationFacingY;
+    let rowOffset = state == "run" ? this.runRowOffset : this.idleRowOffset;
+
+    if (this.kickStartedTimeMs != null) {
+      const elapsedSeconds = Math.max(
+        0,
+        (nowMs - this.kickStartedTimeMs) / 1000,
+      );
+      if (elapsedSeconds < this.kickDurationSeconds) {
+        state = "kick";
+        phaseIndex = Math.min(
+          this.kickPhases - 1,
+          Math.floor(
+            (elapsedSeconds / this.kickDurationSeconds) * this.kickPhases,
+          ),
+        );
+        directionX = this.kickDirectionX;
+        directionY = this.kickDirectionY;
+        rowOffset = this.kickRowOffset;
+      } else {
+        this.kickStartedTimeMs = null;
+      }
     }
+    const directionIndex = this.directionIndex(directionX, directionY);
     return {
       phaseIndex: phaseIndex,
-      topLeftY: topLeftY,
+      state: state,
+      topLeftX: phaseIndex * this.spriteFrameWidth,
+      topLeftY: (rowOffset + directionIndex) * this.spriteFrameHeight,
     };
+  }
+
+  private directionIndex(x: number, y: number): number {
+    if (x == 0 && y == -1) return 0;
+    if (x == 1 && y == -1) return 1;
+    if (x == 1 && y == 0) return 2;
+    if (x == 1 && y == 1) return 3;
+    if (x == 0 && y == 1) return 4;
+    if (x == -1 && y == 1) return 5;
+    if (x == -1 && y == 0) return 6;
+    return 7;
   }
 }

@@ -2,6 +2,7 @@ import { assertEqual, assertNear, assertTrue, test } from "../testlib";
 import { canvasContext, makeFixture } from "../helpers";
 import { Camera } from "../../src/core/camera";
 import { Vector2 as Vector2d } from "../../src/math/vector";
+import { world } from "../../src/core/configuration";
 
 test("Camera snaps viewport translation to device pixels", function () {
   var originalDevicePixelRatio = window.devicePixelRatio;
@@ -54,7 +55,7 @@ test("Camera lerps toward focus target and reports arrival", function () {
   var camera = new Camera(fixture.config, fixture.stadium);
   camera.position.x = 0;
   camera.position.y = 0;
-  camera.setFocusTarget(new Vector2d(334, 433));
+  camera.setFocusTarget(new Vector2d(world(334), world(433)));
   var translateArgs = { x: Number.NaN, y: Number.NaN };
   var ctx = canvasContext({
     save: function () {},
@@ -67,8 +68,12 @@ test("Camera lerps toward focus target and reports arrival", function () {
   camera.windowToViewport(ctx);
 
   var desired = new Vector2d(
-    fixture.config.viewport.width / 2 - 334,
-    fixture.config.viewport.height / 2 - 433,
+    (fixture.config.viewport.width / 2 -
+      world(334) * fixture.config.computeScaleBy()) /
+      fixture.config.computeScaleBy(),
+    (fixture.config.viewport.height / 2 -
+      world(433) * fixture.config.computeScaleBy()) /
+      fixture.config.computeScaleBy(),
   );
   assertNear(translateArgs.x, desired.x * 0.5, 0.0001);
   assertNear(translateArgs.y, desired.y * 0.5, 0.0001);
