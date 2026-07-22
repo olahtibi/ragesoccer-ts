@@ -75,6 +75,7 @@ export class Configuration {
     heldOffsetX: world(5),
     heldOffsetY: world(-8),
     shadowFrame: 8,
+    shadowOffsetY: world(1),
     shadowMaxHeight: world(40),
   };
 

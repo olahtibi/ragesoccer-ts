@@ -91,7 +91,11 @@ test("Ball keeps its shadow grounded while its body rises", function () {
 
   assertEqual(calls.length, 2);
   assertEqual(calls[0][0], fixture.config.ball.shadowFrame * 16);
-  assertNear(calls[0][5] + calls[0][7] / 2, ball.position.y, 0.0001);
+  assertNear(
+    calls[0][5] + calls[0][7] / 2,
+    ball.position.y + fixture.config.ball.shadowOffsetY,
+    0.0001,
+  );
   assertNear(
     calls[1][5],
     ball.position.y - ball.ballRadius - ball.position.z,

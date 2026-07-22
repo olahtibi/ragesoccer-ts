@@ -22,6 +22,7 @@ class Ball {
   private readonly heldOffsetX: number;
   private readonly heldOffsetY: number;
   private readonly shadowFrame: number;
+  private readonly shadowOffsetY: number;
   private readonly shadowMaxHeight: number;
   private nextKickImpulseMultiplier: number;
 
@@ -47,6 +48,7 @@ class Ball {
     this.heldOffsetX = ballConfig.heldOffsetX;
     this.heldOffsetY = ballConfig.heldOffsetY;
     this.shadowFrame = ballConfig.shadowFrame;
+    this.shadowOffsetY = ballConfig.shadowOffsetY;
     this.shadowMaxHeight = ballConfig.shadowMaxHeight;
     this.nextKickImpulseMultiplier = 1;
   }
@@ -96,7 +98,7 @@ class Ball {
       size,
       size,
       this.position.x - shadowSize / 2,
-      this.position.y - shadowSize / 2,
+      this.position.y + this.shadowOffsetY - shadowSize / 2,
       shadowSize,
       shadowSize,
     );
