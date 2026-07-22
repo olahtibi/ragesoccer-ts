@@ -66,12 +66,16 @@ test("Configuration keeps legacy camera coverage at four-times world scale", fun
   assertNear(config.computeScaleBy(), 0.75, 0.0001);
 });
 
-test("Configuration fits the pitch width continuously on mobile", function () {
-  var config = makeConfig();
+test("Configuration starts mobile closer with continuous scaling", function () {
+  var config = makeConfig({ mobile: true });
   config.viewport.width = 932;
   config.viewport.height = 430;
-  config.viewport.ratio = 1;
-  assertNear(config.computeScaleBy(), 932 / config.pitch.stadiumWidth, 0.0001);
+  assertNear(config.viewport.ratio, 0.5, 0.0001);
+  assertNear(
+    config.computeScaleBy(),
+    932 / (config.pitch.stadiumWidth * 0.5),
+    0.0001,
+  );
 });
 
 test("Configuration parses and clamps game options from query string", function () {

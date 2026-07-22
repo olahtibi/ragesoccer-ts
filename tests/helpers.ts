@@ -15,6 +15,8 @@ export interface FixtureOptions {
   kickoffSide?: "home" | "away";
   outOfPlayRestartsEnabled?: boolean;
   search?: string;
+  mobile?: boolean;
+  viewportRatio?: number;
 }
 
 function testAssets(): GameAssets {
@@ -32,6 +34,8 @@ export function makeConfig(options: FixtureOptions = {}): Configuration {
     search: options.search ?? "",
     width: 640,
     height: 480,
+    mobile: options.mobile,
+    viewportRatio: options.viewportRatio,
   });
   if (options.search === undefined || options.homeTeamSize !== undefined) {
     config.teams.homeSize = options.homeTeamSize ?? 1;

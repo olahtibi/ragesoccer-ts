@@ -243,7 +243,10 @@ export class Configuration {
     this.viewport = {
       width: options.width ?? window.innerWidth,
       height: options.height ?? window.innerHeight,
-      ratio: options.viewportRatio ?? (mobile ? 1 : 0.7),
+      // Mobile used to fit the full stadium width (ratio 1), which made the
+      // players and ball feel too distant. Start closer while retaining smooth
+      // mobile scaling across different screen sizes.
+      ratio: options.viewportRatio ?? (mobile ? 0.5 : 0.7),
       mobile: mobile,
     };
     this.applyQueryOptions(options.search ?? window.location.search);
@@ -276,7 +279,7 @@ export class Configuration {
         ? this.viewport.width / (this.pitch.stadiumWidth * this.viewport.ratio)
         : this.viewport.height /
           (this.pitch.stadiumHeight * this.viewport.ratio);
-    if (this.viewport.ratio >= 1) {
+    if (this.viewport.mobile || this.viewport.ratio >= 1) {
       return Math.max(1 / WORLD_SCALE, scale);
     }
     return Math.max(
