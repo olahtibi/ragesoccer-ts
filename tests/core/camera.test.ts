@@ -2,6 +2,7 @@ import { assertEqual, assertNear, assertTrue, test } from "../testlib";
 import { canvasContext, makeFixture } from "../helpers";
 import { Camera } from "../../src/core/camera";
 import { Vector2 as Vector2d } from "../../src/math/vector";
+import { world } from "../../src/core/configuration";
 
 test("Camera snaps viewport translation to device pixels", function () {
   var originalDevicePixelRatio = window.devicePixelRatio;
@@ -54,7 +55,7 @@ test("Camera lerps toward focus target and reports arrival", function () {
   var camera = new Camera(fixture.config, fixture.stadium);
   camera.position.x = 0;
   camera.position.y = 0;
-  camera.setFocusTarget(new Vector2d(334, 433));
+  camera.setFocusTarget(new Vector2d(world(334), world(433)));
   var translateArgs = { x: Number.NaN, y: Number.NaN };
   var ctx = canvasContext({
     save: function () {},
@@ -67,8 +68,12 @@ test("Camera lerps toward focus target and reports arrival", function () {
   camera.windowToViewport(ctx);
 
   var desired = new Vector2d(
-    fixture.config.viewport.width / 2 - 334,
-    fixture.config.viewport.height / 2 - 433,
+    (fixture.config.viewport.width / 2 -
+      world(334) * fixture.config.computeScaleBy()) /
+      fixture.config.computeScaleBy(),
+    (fixture.config.viewport.height / 2 -
+      world(433) * fixture.config.computeScaleBy()) /
+      fixture.config.computeScaleBy(),
   );
   assertNear(translateArgs.x, desired.x * 0.5, 0.0001);
   assertNear(translateArgs.y, desired.y * 0.5, 0.0001);
@@ -77,6 +82,32 @@ test("Camera lerps toward focus target and reports arrival", function () {
   camera.position.x = desired.x;
   camera.position.y = desired.y;
   assertTrue(camera.hasArrivedAtFocus());
+});
+
+test("Camera centers the pitch when the viewport is wider than the world", function () {
+  var fixture = makeFixture();
+  fixture.config.viewport.width = 800;
+  fixture.config.viewport.height = 400;
+  fixture.config.viewport.ratio = 1;
+  var camera = new Camera(fixture.config, fixture.stadium);
+  var translateX = Number.NaN;
+  var ctx = canvasContext({
+    save: function () {},
+    scale: function () {},
+    translate: function (x: number) {
+      translateX = x;
+    },
+  });
+
+  camera.windowToViewport(ctx);
+
+  var visibleWidth =
+    fixture.config.viewport.width / fixture.config.computeScaleBy();
+  assertNear(
+    translateX,
+    (visibleWidth - fixture.config.pitch.stadiumWidth) / 2,
+    0.0001,
+  );
 });
 
 test("Camera overlay renders team-owned scores and supplied FPS", function () {
@@ -152,6 +183,26 @@ test("Camera overlay stays in screen space across camera positions and zoom", fu
   );
 });
 
+test("Camera uses a smaller score overlay for a mobile viewport", function () {
+  var fixture = makeFixture();
+  fixture.config.viewport.mobile = true;
+  var panels: Array<{ width: number; height: number }> = [];
+  var ctx = canvasContext({
+    fillRect: function (_x: number, _y: number, width: number, height: number) {
+      panels.push({ width: width, height: height });
+    },
+    fillText: function () {},
+    save: function () {},
+    restore: function () {},
+  });
+
+  fixture.game.camera.renderOverlay(ctx, 60);
+
+  assertEqual(panels[0].width, 132);
+  assertEqual(panels[0].height, 21);
+  assertTrue(ctx.font.includes("10.5px"));
+});
+
 test("Camera overlay keeps FPS separate from the top-left score strip", function () {
   var fixture = makeFixture();
   fixture.game.camera.showStats = true;
@@ -166,13 +217,14 @@ test("Camera overlay keeps FPS separate from the top-left score strip", function
     restore: function () {},
   });
 
-  fixture.config.assets.canvas.width = 640;
+  fixture.config.viewport.width = 640;
+  fixture.config.assets.canvas.width = 1280;
   fixture.game.camera.renderOverlay(ctx, 60);
   assertEqual(fpsPositions[fpsPositions.length - 1].x, 598);
   assertEqual(fpsPositions[fpsPositions.length - 1].y, 18);
 
   fpsPositions.length = 0;
-  fixture.config.assets.canvas.width = 240;
+  fixture.config.viewport.width = 240;
   fixture.game.camera.renderOverlay(ctx, 60);
   assertEqual(fpsPositions[fpsPositions.length - 1].x, 198);
   assertEqual(fpsPositions[fpsPositions.length - 1].y, 52);

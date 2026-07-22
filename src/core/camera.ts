@@ -42,37 +42,34 @@ class Camera {
     target: Vector2d,
     scaleBy: number,
   ): Vector2d {
-    const position = new Vector2d(0, 0);
-    if (
-      target.x * scaleBy >=
-      this.config.pitch.stadiumWidth * scaleBy - this.config.viewport.width / 2
-    ) {
-      position.x =
-        (this.config.viewport.width -
-          this.config.pitch.stadiumWidth * scaleBy) /
-        scaleBy;
-    } else if (target.x * scaleBy <= this.config.viewport.width / 2) {
-      position.x = 0;
-    } else {
-      position.x =
-        (this.config.viewport.width / 2 - target.x * scaleBy) / scaleBy;
+    return new Vector2d(
+      this.viewportAxisPosition(
+        target.x,
+        this.config.pitch.stadiumWidth,
+        this.config.viewport.width,
+        scaleBy,
+      ),
+      this.viewportAxisPosition(
+        target.y,
+        this.config.pitch.stadiumHeight,
+        this.config.viewport.height,
+        scaleBy,
+      ),
+    );
+  }
+
+  private viewportAxisPosition(
+    target: number,
+    worldSize: number,
+    viewportSize: number,
+    scaleBy: number,
+  ): number {
+    const visibleWorldSize = viewportSize / scaleBy;
+    if (visibleWorldSize >= worldSize) {
+      return (visibleWorldSize - worldSize) / 2;
     }
-    if (
-      target.y * scaleBy >=
-      this.config.pitch.stadiumHeight * scaleBy -
-        this.config.viewport.height / 2
-    ) {
-      position.y =
-        (this.config.viewport.height -
-          this.config.pitch.stadiumHeight * scaleBy) /
-        scaleBy;
-    } else if (target.y * scaleBy <= this.config.viewport.height / 2) {
-      position.y = 0;
-    } else {
-      position.y =
-        (this.config.viewport.height / 2 - target.y * scaleBy) / scaleBy;
-    }
-    return position;
+    const desired = visibleWorldSize / 2 - target;
+    return Math.max(visibleWorldSize - worldSize, Math.min(0, desired));
   }
 
   public setFocusTarget(target: Vector2d): void {
@@ -104,10 +101,16 @@ class Camera {
     ctx.restore();
     ctx.save();
 
-    const screenWidth = ctx.canvas?.width || this.config.viewport.width;
-    const margin = 8;
-    const panelWidth = Math.max(0, Math.min(176, screenWidth - margin * 2));
-    const panelHeight = 28;
+    // Overlay drawing happens in CSS-pixel space even when the canvas backing
+    // store is enlarged for devicePixelRatio.
+    const screenWidth = this.config.viewport.width;
+    const hudScale = this.config.viewport.mobile ? 0.75 : 1;
+    const margin = Math.round(8 * hudScale);
+    const panelWidth = Math.max(
+      0,
+      Math.min(176 * hudScale, screenWidth - margin * 2),
+    );
+    const panelHeight = 28 * hudScale;
     const panelX = margin;
     const panelY = margin;
 
@@ -136,6 +139,7 @@ class Camera {
   ): void {
     this.drawHudPanel(ctx, x, y, width, height);
 
+    const scale = height / 28;
     const centerY = y + height / 2;
     ctx.fillStyle = "#e4473a";
     ctx.fillRect(x + 1, y + 1, 4, Math.max(0, height - 2));
@@ -144,27 +148,27 @@ class Camera {
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = 'bold 11px "Arial Narrow", Arial, sans-serif';
+    ctx.font = `bold ${11 * scale}px "Arial Narrow", Arial, sans-serif`;
     this.drawHudText(
       ctx,
       this.stadium.homeTeam.shortName,
-      x + 27,
+      x + 27 * scale,
       centerY,
       "#ffffff",
     );
     this.drawHudText(
       ctx,
       this.stadium.awayTeam.shortName,
-      x + width - 27,
+      x + width - 27 * scale,
       centerY,
       "#ffffff",
     );
 
-    ctx.font = 'bold 14px "Arial Narrow", Arial, sans-serif';
+    ctx.font = `bold ${14 * scale}px "Arial Narrow", Arial, sans-serif`;
     this.drawHudText(
       ctx,
       String(this.stadium.homeTeam.score),
-      x + 65,
+      x + 65 * scale,
       centerY,
       "#ffffff",
     );
@@ -172,7 +176,7 @@ class Camera {
     this.drawHudText(
       ctx,
       String(this.stadium.awayTeam.score),
-      x + width - 65,
+      x + width - 65 * scale,
       centerY,
       "#ffffff",
     );
@@ -214,7 +218,7 @@ class Camera {
     width: number,
     height: number,
   ): void {
-    ctx.fillStyle = "rgba(72, 72, 72, 0.4)";
+    ctx.fillStyle = "rgba(72, 72, 72, 0.3)";
     ctx.fillRect(x, y, width, height);
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.65)";

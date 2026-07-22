@@ -1,10 +1,11 @@
 import { assertEqual, test } from "../../testlib";
 import { makeFixture } from "../../helpers";
+import { world } from "../../../src/core/configuration";
 
 test("GoalDetector scores home when ball enters top goal", function () {
   var fixture = makeFixture();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
 
   var scoredBy = fixture.goalDetector.update();
 
@@ -13,8 +14,8 @@ test("GoalDetector scores home when ball enters top goal", function () {
 
 test("GoalDetector scores away when ball enters bottom goal", function () {
   var fixture = makeFixture();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 758;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(758);
 
   var scoredBy = fixture.goalDetector.update();
 
@@ -23,8 +24,8 @@ test("GoalDetector scores away when ball enters bottom goal", function () {
 
 test("GoalDetector does not double-count a ball that remains inside a goal", function () {
   var fixture = makeFixture();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
 
   var first = fixture.goalDetector.update();
   var second = fixture.goalDetector.update();
@@ -35,14 +36,14 @@ test("GoalDetector does not double-count a ball that remains inside a goal", fun
 
 test("GoalDetector resets after the ball exits the goals", function () {
   var fixture = makeFixture();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
   fixture.goalDetector.update();
 
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 433;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(433);
   fixture.goalDetector.update();
 
-  fixture.ball.position.y = 100;
+  fixture.ball.position.y = world(100);
   assertEqual(fixture.goalDetector.update(), "home");
 });

@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Game } from "../../src/core/game";
 import { Formation } from "../../src/ai/formation";
+import { world } from "../../src/core/configuration";
 
 test("Game composes explicit controllers without putting them on Stadium", function () {
   var fixture = makeFixture();
@@ -154,8 +155,8 @@ test("A home goal updates the score and starts an away kickoff once", function (
   var fixture = makeFixture();
   fixture.restartController.clear();
   fixture.game.matchFlow.enterNormalPlayForTesting();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
   fixture.game.matchFlow.detectGoal(fixture.game.context());
@@ -173,8 +174,8 @@ test("An away goal updates the score and starts a home kickoff", function () {
   var fixture = makeFixture();
   fixture.restartController.clear();
   fixture.game.matchFlow.enterNormalPlayForTesting();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 758;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(758);
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
   updateTeamAis(fixture);
@@ -183,8 +184,8 @@ test("An away goal updates the score and starts a home kickoff", function () {
   assertEqual(fixture.awayTeam.score, 1);
   assertEqual(fixture.restartController.type(), "kickoff");
   assertEqual(fixture.restartController.phase(), "celebrating");
-  assertEqual(fixture.game.camera.focusTarget?.x, 336);
-  assertEqual(fixture.game.camera.focusTarget?.y, 758);
+  assertEqual(fixture.game.camera.focusTarget?.x, world(336));
+  assertEqual(fixture.game.camera.focusTarget?.y, world(758));
   assertEqual(fixture.homeTeamAi.state, "kickoffUs");
   assertEqual(fixture.awayTeamAi.state, "kickoffOpponent");
 });
@@ -193,8 +194,8 @@ test("A home goal kickoff waits for fresh input after positioning", function () 
   var fixture = makeFixture({ homeTeamSize: 1, awayTeamSize: 1 });
   fixture.restartController.clear();
   fixture.game.matchFlow.enterNormalPlayForTesting();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 758;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(758);
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
   fixture.restartController.updateAfterPhysics(
@@ -213,17 +214,17 @@ test("Goal celebration follows the scorer and moves both teams to kickoff", func
   var scorer = fixture.homePlayers[1];
   fixture.ball.lastTouchedBy = "home";
   fixture.ball.lastTouchedPlayer = scorer;
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
-  fixture.awayPlayers[1].position.x = 100;
-  fixture.awayPlayers[1].position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
+  fixture.awayPlayers[1].position.x = world(100);
+  fixture.awayPlayers[1].position.y = world(100);
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
 
   assertEqual(fixture.restartController.phase(), "celebrating");
   assertEqual(fixture.game.matchFlow.simulationMode(), "cutscene");
-  assertEqual(fixture.game.camera.focusTarget?.x, 336);
-  assertEqual(fixture.game.camera.focusTarget?.y, 101.5);
+  assertEqual(fixture.game.camera.focusTarget?.x, world(336));
+  assertEqual(fixture.game.camera.focusTarget?.y, world(101.5));
   assertEqual(fixture.game.resumeFromInput(null), false);
   assertTrue(
     fixture.homePlayers.some(function (player) {
@@ -237,30 +238,30 @@ test("Goal celebration follows the scorer and moves both teams to kickoff", func
   );
 
   fixture.restartController.updateAfterPhysics(fixture.game.context(), 0.99);
-  assertEqual(fixture.game.camera.focusTarget?.x, 336);
-  assertEqual(fixture.game.camera.focusTarget?.y, 101.5);
+  assertEqual(fixture.game.camera.focusTarget?.x, world(336));
+  assertEqual(fixture.game.camera.focusTarget?.y, world(101.5));
 
   fixture.restartController.updateAfterPhysics(fixture.game.context(), 0.01);
   assertTrue(fixture.game.camera.focusTarget === scorer.position);
 
-  fixture.ball.position.x = 400;
+  fixture.ball.position.x = world(400);
   fixture.restartController.updateBeforePhysics(fixture.game.context());
-  assertEqual(fixture.ball.position.x, 400);
-  assertEqual(fixture.ball.position.y, 100);
+  assertEqual(fixture.ball.position.x, world(400));
+  assertEqual(fixture.ball.position.y, world(100));
 });
 
 test("Goal celebration updates live ball physics without detecting new events", function () {
   var fixture = makeFixture();
   fixture.game.matchFlow.enterNormalPlayForTesting();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
   fixture.game.matchFlow.detectGoal(fixture.game.context());
   var physicsMode = "";
   var eventDetections = 0;
   fixture.physics.update = function (mode) {
     physicsMode = mode;
     fixture.physics.lastDt = 0.1;
-    fixture.ball.position.x += 10;
+    fixture.ball.position.x += world(10);
   };
   fixture.game.matchFlow.detectPostPhysicsEvents = function () {
     eventDetections++;
@@ -270,7 +271,7 @@ test("Goal celebration updates live ball physics without detecting new events", 
   fixture.game.update();
 
   assertEqual(physicsMode, "cutscene");
-  assertEqual(fixture.ball.position.x, 346);
+  assertEqual(fixture.ball.position.x, world(346));
   assertEqual(eventDetections, 0);
 });
 
@@ -279,13 +280,13 @@ test("Own goal celebration focuses the scoring team's first striker", function (
   fixture.game.matchFlow.enterNormalPlayForTesting();
   fixture.ball.lastTouchedBy = "away";
   fixture.ball.lastTouchedPlayer = fixture.awayPlayers[2];
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
   var strikerIndex = new Formation(fixture.config).kickoffTakerIndex(5);
 
   fixture.game.matchFlow.detectGoal(fixture.game.context());
-  assertEqual(fixture.game.camera.focusTarget?.x, 336);
-  assertEqual(fixture.game.camera.focusTarget?.y, 101.5);
+  assertEqual(fixture.game.camera.focusTarget?.x, world(336));
+  assertEqual(fixture.game.camera.focusTarget?.y, world(101.5));
   fixture.restartController.updateAfterPhysics(fixture.game.context(), 1);
 
   assertTrue(
@@ -297,8 +298,8 @@ test("Own goal celebration focuses the scoring team's first striker", function (
 test("Goal celebration times out into the same kickoff placements", function () {
   var fixture = makeFixture({ homeTeamSize: 5, awayTeamSize: 5 });
   fixture.game.matchFlow.enterNormalPlayForTesting();
-  fixture.ball.position.x = 336;
-  fixture.ball.position.y = 100;
+  fixture.ball.position.x = world(336);
+  fixture.ball.position.y = world(100);
   fixture.game.matchFlow.detectGoal(fixture.game.context());
   var targets = fixture.restartController.positioningTargets("home");
   assertTrue(targets != null);

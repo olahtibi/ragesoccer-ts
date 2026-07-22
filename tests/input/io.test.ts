@@ -507,3 +507,14 @@ test("Q and W change the viewport ratio", function () {
   setupResult.input.handleKey({ keyCode: 87, type: "keydown" });
   assertNear(setupResult.fixture.config.viewport.ratio, ratio, 0.0001);
 });
+
+test("F toggles the FPS counter", function () {
+  var setupResult = setup();
+  assertEqual(setupResult.game.camera.showStats, false);
+
+  setupResult.input.handleKey({ keyCode: 70, type: "keydown" });
+  assertEqual(setupResult.game.camera.showStats, true);
+
+  setupResult.input.handleKey({ keyCode: 70, type: "keydown" });
+  assertEqual(setupResult.game.camera.showStats, false);
+});

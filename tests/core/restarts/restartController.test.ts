@@ -15,7 +15,7 @@ import { ThrowInRestart } from "../../../src/core/restarts/throwInRestart";
 import { math as MathLib } from "../../../src/math/math";
 import { Vector2 as Vector2d } from "../../../src/math/vector";
 import type { Vector2 } from "../../../src/math/vector";
-import type { Configuration } from "../../../src/core/configuration";
+import { world, type Configuration } from "../../../src/core/configuration";
 import type { PositioningController } from "../../../src/core/restarts/positioningController";
 import type { Player } from "../../../src/world/player";
 import type {
@@ -685,12 +685,12 @@ test("Corner restart never selects the goalkeeper or cover defender as taker", f
   );
   fixture.homePlayers[0].position.x = corner.x;
   fixture.homePlayers[0].position.y = corner.y;
-  fixture.homePlayers[1].position.x = corner.x + 1;
-  fixture.homePlayers[1].position.y = corner.y + 1;
-  fixture.homePlayers[2].position.x = corner.x + 40;
-  fixture.homePlayers[2].position.y = corner.y + 40;
-  fixture.homePlayers[3].position.x = corner.x + 80;
-  fixture.homePlayers[3].position.y = corner.y + 80;
+  fixture.homePlayers[1].position.x = corner.x + world(1);
+  fixture.homePlayers[1].position.y = corner.y + world(1);
+  fixture.homePlayers[2].position.x = corner.x + world(40);
+  fixture.homePlayers[2].position.y = corner.y + world(40);
+  fixture.homePlayers[3].position.x = corner.x + world(80);
+  fixture.homePlayers[3].position.y = corner.y + world(80);
 
   fixture.game.beginRestart({
     type: "corner",
@@ -703,13 +703,13 @@ test("Corner restart never selects the goalkeeper or cover defender as taker", f
   var ballPosition = required(scene.ballPosition());
   var homePlacements = required(scene.placements()).home;
   assertTrue(
-    MathLib.computeDistance(homePlacements[2].target, ballPosition) < 20,
+    MathLib.computeDistance(homePlacements[2].target, ballPosition) < world(20),
   );
   assertTrue(
-    MathLib.computeDistance(homePlacements[0].target, ballPosition) > 20,
+    MathLib.computeDistance(homePlacements[0].target, ballPosition) > world(20),
   );
   assertTrue(
-    MathLib.computeDistance(homePlacements[1].target, ballPosition) > 20,
+    MathLib.computeDistance(homePlacements[1].target, ballPosition) > world(20),
   );
   assertTrue(
     Math.abs(
@@ -760,7 +760,7 @@ test("Corner restart applies the taker-aware layered plan before jitter", functi
     MathLib.computeDistance(
       homePlacements[takerIndex].target,
       sceneBallPosition,
-    ) < 20,
+    ) < world(20),
   );
 });
 
@@ -786,7 +786,10 @@ test("Goal kick always positions the goalkeeper as the only nearby taker", funct
   ).home;
   var nearby = 0;
   for (var i = 0; i < homePlacements.length; i++) {
-    if (MathLib.computeDistance(homePlacements[i].target, ballPosition) < 40)
+    if (
+      MathLib.computeDistance(homePlacements[i].target, ballPosition) <
+      world(40)
+    )
       nearby++;
   }
   assertEqual(nearby, 1);
@@ -804,8 +807,8 @@ test("Kickoff clamps the human player to the center ellipse", function () {
   player.position.y =
     fixture.config.pitch.aiCenterY -
     fixture.config.pitch.centerCircleRadiusY -
-    20;
-  player.velocity.y = -10;
+    world(20);
+  player.velocity.y = world(-10);
 
   fixture.restartController.updateAfterPhysics(
     fixture.game.context(),

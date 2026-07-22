@@ -1,6 +1,9 @@
 import { Vector2, Vector3 } from "../math/vector";
 import type { TeamSide } from "../types";
 
+export const WORLD_SCALE = 4;
+export const world = (value: number): number => value * WORLD_SCALE;
+
 export interface GameAssets {
   pitch: HTMLImageElement;
   ball: HTMLImageElement;
@@ -11,78 +14,88 @@ export interface GameAssets {
 
 export class Configuration {
   readonly pitch = {
-    boxTopLeft: new Vector2(50, 80),
-    boxTopRight: new Vector2(625, 80),
-    boxBottomLeft: new Vector2(50, 785),
-    boxBottomRight: new Vector2(625, 785),
-    goalTopTopLeft: new Vector2(300, 90),
-    goalTopTopRight: new Vector2(372, 90),
-    goalTopBottomLeft: new Vector2(300, 113),
-    goalTopBottomRight: new Vector2(372, 113),
-    goalBottomTopLeft: new Vector2(300, 753),
-    goalBottomTopRight: new Vector2(372, 753),
-    goalBottomBottomLeft: new Vector2(300, 763),
-    goalBottomBottomRight: new Vector2(372, 763),
-    fieldLeft: 81,
-    fieldRight: 590,
-    fieldTop: 113,
-    fieldBottom: 753,
-    stadiumWidth: 672,
-    stadiumHeight: 848,
-    centerCircleRadiusX: 62,
-    centerCircleRadiusY: 40,
-    initialBallPosition: new Vector3(334, 433, 0),
-    aiCenterY: 433,
+    boxTopLeft: new Vector2(world(50), world(80)),
+    boxTopRight: new Vector2(world(625), world(80)),
+    boxBottomLeft: new Vector2(world(50), world(785)),
+    boxBottomRight: new Vector2(world(625), world(785)),
+    goalTopTopLeft: new Vector2(world(300), world(90)),
+    goalTopTopRight: new Vector2(world(372), world(90)),
+    goalTopBottomLeft: new Vector2(world(300), world(113)),
+    goalTopBottomRight: new Vector2(world(372), world(113)),
+    goalBottomTopLeft: new Vector2(world(300), world(753)),
+    goalBottomTopRight: new Vector2(world(372), world(753)),
+    goalBottomBottomLeft: new Vector2(world(300), world(763)),
+    goalBottomBottomRight: new Vector2(world(372), world(763)),
+    fieldLeft: world(81),
+    fieldRight: world(590),
+    fieldTop: world(113),
+    fieldBottom: world(753),
+    stadiumWidth: world(672),
+    stadiumHeight: world(848),
+    centerCircleRadiusX: world(62),
+    centerCircleRadiusY: world(40),
+    initialBallPosition: new Vector3(world(334), world(433), 0),
+    aiCenterY: world(433),
   };
 
   readonly viewport: {
     width: number;
     height: number;
     ratio: number;
+    mobile: boolean;
   };
 
   readonly physics = {
-    baseKickBoost: 120,
+    baseKickBoost: world(120),
     playerMomentumTransfer: 1.8,
-    maxKickSpeed: 520,
-    baseLoft: 55,
+    maxKickSpeed: world(520),
+    baseLoft: world(55),
     kickLoftFactor: 0.35,
     ballPlayerRestitution: 0.35,
     ballFriction: 1.6,
     ballAirFriction: 0.35,
-    gravity: 380,
+    gravity: world(380),
     ballGroundRestitution: 0.55,
     groundImpactDamping: 0.88,
-    minBounceVelocity: 25,
+    minBounceVelocity: world(25),
     wallRestitution: 0.7,
-    minVelocity: 3,
-    ballContactMaxZ: 5,
+    minVelocity: world(3),
+    ballContactMaxZ: world(5),
     maxDeltaSeconds: 0.1,
-    contactEpsilon: 0.01,
-    zeroDistanceEpsilon: 0.0001,
+    contactEpsilon: world(0.01),
+    zeroDistanceEpsilon: world(0.0001),
     statsSampleFrames: 100,
     fpsDisplayIntervalMs: 250,
   };
 
   readonly ball = {
-    radius: 2,
-    spinPxPerPhase: 6,
-    spritePhases: 4,
-    heldOffsetX: 5,
-    heldOffsetY: -8,
-    shadowFrame: 4,
-    shadowOffset: 1,
+    radius: world(2),
+    spinPxPerPhase: world(3),
+    spritePhases: 8,
+    heldOffsetX: world(5),
+    heldOffsetY: world(-8),
+    shadowFrame: 8,
+    shadowOffsetY: world(1),
+    shadowMaxHeight: world(40),
   };
 
   readonly player = {
-    radius: 4,
-    stepPxPerPhase: 4,
-    spriteWidth: 10,
-    spriteHeight: 16,
-    spriteCenterX: 6,
-    spriteCenterY: 13,
-    spriteSourceRowHeight: 18,
-    spritePhases: 3,
+    radius: world(4),
+    stepPxPerPhase: 10,
+    spriteWidth: 40,
+    spriteHeight: 64,
+    spriteCenterX: 20,
+    spriteCenterY: 60,
+    spriteFrameWidth: 40,
+    spriteFrameHeight: 64,
+    idleRowOffset: 0,
+    runRowOffset: 8,
+    runPhases: 8,
+    markerOffsetX: world(-1),
+    markerOffsetY: world(-2),
+    markerOuterRadius: world(10),
+    markerInnerRadius: world(4),
+    markerLineWidth: world(1),
     animationDirectionResponseRate: 18,
     animationDirectionConfidenceThreshold: 0.75,
     animationIdleGraceSeconds: 0.05,
@@ -96,27 +109,27 @@ export class Configuration {
     awayStrength: 6,
     homeSize: 11,
     awaySize: 11,
-    minVelocity: 35,
-    velocityRange: 30,
+    minVelocity: world(35),
+    velocityRange: world(30),
   };
 
   readonly ai = {
     enabled: true,
-    goalieDistance: 3,
-    formationDefenderProgress: -200,
+    goalieDistance: world(3),
+    formationDefenderProgress: world(-200),
     formationMidfielderProgress: 0,
-    formationStrikerProgress: 130,
-    formationStateShift: 55,
-    formationDefenderDefenseShift: 25,
-    kickoffMidfielderProgress: -100,
-    arrivalSlowRadius: 36,
+    formationStrikerProgress: world(130),
+    formationStateShift: world(55),
+    formationDefenderDefenseShift: world(25),
+    kickoffMidfielderProgress: world(-100),
+    arrivalSlowRadius: world(36),
     arrivalMinSpeedFactor: 0.35,
-    minTeammateSpacing: 36,
+    minTeammateSpacing: world(36),
     formationPaceVariation: 0.08,
-    formationLateralVariation: 20,
-    formationDepthVariation: 22,
-    formationWanderLateral: 17,
-    formationWanderDepth: 32,
+    formationLateralVariation: world(20),
+    formationDepthVariation: world(22),
+    formationWanderLateral: world(17),
+    formationWanderDepth: world(32),
     formationWanderIntervalMin: 1.2,
     formationWanderIntervalMax: 2.8,
     formationBallResponseVariation: 0.3,
@@ -125,25 +138,25 @@ export class Configuration {
     formationDefenderBallInfluence: 0.08,
     formationMidfielderBallInfluence: 0.14,
     formationStrikerBallInfluence: 0.1,
-    formationDefenderMaxShift: 18,
-    formationMidfielderMaxShift: 28,
-    formationStrikerMaxShift: 22,
-    formationSeparationMaxShift: 12,
-    targetDeadband: 2,
-    targetResumeRadius: 4,
-    targetReachedRadius: 1,
-    attackerSwitchHysteresisDistance: 20,
-    formationFallbackDepth: 20,
-    fieldClampClearance: 1,
-    attackSetupDistance: 14,
-    attackRunThroughDistance: 18,
+    formationDefenderMaxShift: world(18),
+    formationMidfielderMaxShift: world(28),
+    formationStrikerMaxShift: world(22),
+    formationSeparationMaxShift: world(12),
+    targetDeadband: world(2),
+    targetResumeRadius: world(4),
+    targetReachedRadius: world(1),
+    attackerSwitchHysteresisDistance: world(20),
+    formationFallbackDepth: world(20),
+    fieldClampClearance: world(1),
+    attackSetupDistance: world(14),
+    attackRunThroughDistance: world(18),
     attackDetourStepRadians: Math.PI / 6,
     attackAimToleranceRadians: 0.15,
     attackAimCorrectionToleranceRadians: 0.05,
     attackAimReleaseToleranceRadians: 0.3,
-    attackCorrectionReachedRadius: 0.1,
-    attackDetourRadius: 10,
-    attackCloseDistance: 26,
+    attackCorrectionReachedRadius: world(0.1),
+    attackDetourRadius: world(10),
+    attackCloseDistance: world(26),
     attackOrbitCommitAngle: Math.PI - 0.3,
   };
 
@@ -176,51 +189,62 @@ export class Configuration {
     takerClearance: number;
   } = {
     kickoffSide: "home",
-    kickoffTakerDistance: 8,
+    kickoffTakerDistance: world(8),
     kickoffImpulseMultiplier: 0.5,
     outOfPlayEnabled: true,
     outOfPlayDelaySeconds: 0.35,
     opponentDelaySeconds: 1,
-    opponentDistance: 45,
-    placementClearance: 1,
-    positionVariationX: 10,
-    positionVariationY: 12,
-    goalKickDistance: 25,
-    goalKickTakerDistance: 20,
-    cornerCrossDistance: 65,
-    cornerBoxSpacing: 34,
-    cornerBoxDepth: 45,
-    cornerBoxDepthStep: 15,
-    cornerLateDepth: 115,
-    cornerEdgeDepth: 145,
-    cornerShortInset: 50,
-    cornerShortDepth: 35,
-    cornerLateRunReleaseDistance: 35,
-    throwInSpeed: 80,
-    throwInLoft: 90,
-    throwInGoalLineSafetyDistance: 75,
-    throwInReceiverDistance: 40,
-    takerClearance: 2,
+    opponentDistance: world(45),
+    placementClearance: world(1),
+    positionVariationX: world(10),
+    positionVariationY: world(12),
+    goalKickDistance: world(25),
+    goalKickTakerDistance: world(20),
+    cornerCrossDistance: world(65),
+    cornerBoxSpacing: world(34),
+    cornerBoxDepth: world(45),
+    cornerBoxDepthStep: world(15),
+    cornerLateDepth: world(115),
+    cornerEdgeDepth: world(145),
+    cornerShortInset: world(50),
+    cornerShortDepth: world(35),
+    cornerLateRunReleaseDistance: world(35),
+    throwInSpeed: world(80),
+    throwInLoft: world(90),
+    throwInGoalLineSafetyDistance: world(75),
+    throwInReceiverDistance: world(40),
+    takerClearance: world(2),
   };
 
   readonly cutscene = {
-    arrivedRadius: 3,
-    cameraArrivedRadius: 2,
+    arrivedRadius: world(3),
+    cameraArrivedRadius: world(2),
     cameraLerp: 0.06,
     goalCelebrationSeconds: 5,
     goalFocusSeconds: 1,
   };
-  readonly input = { humanSwitchHysteresisDistance: 20 };
-  readonly debug = { enabled: true, logSeconds: 3, logEveryNFrames: 4 };
+  readonly input = { humanSwitchHysteresisDistance: world(20) };
+  readonly debug = { enabled: false, logSeconds: 3, logEveryNFrames: 4 };
 
   public constructor(
     readonly assets: GameAssets,
-    options: { search?: string; width?: number; height?: number } = {},
+    options: {
+      search?: string;
+      width?: number;
+      height?: number;
+      viewportRatio?: number;
+      mobile?: boolean;
+    } = {},
   ) {
+    const mobile =
+      options.mobile ??
+      window.matchMedia?.("(pointer: coarse)").matches ??
+      false;
     this.viewport = {
       width: options.width ?? window.innerWidth,
       height: options.height ?? window.innerHeight,
-      ratio: 0.7,
+      ratio: options.viewportRatio ?? (mobile ? 1 : 0.7),
+      mobile: mobile,
     };
     this.applyQueryOptions(options.search ?? window.location.search);
   }
@@ -252,7 +276,13 @@ export class Configuration {
         ? this.viewport.width / (this.pitch.stadiumWidth * this.viewport.ratio)
         : this.viewport.height /
           (this.pitch.stadiumHeight * this.viewport.ratio);
-    return Math.max(1, Math.round(scale));
+    if (this.viewport.ratio >= 1) {
+      return Math.max(1 / WORLD_SCALE, scale);
+    }
+    return Math.max(
+      1 / WORLD_SCALE,
+      Math.round(scale * WORLD_SCALE) / WORLD_SCALE,
+    );
   }
 
   private applyQueryOptions(search: string): void {

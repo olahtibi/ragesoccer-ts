@@ -1,6 +1,7 @@
 import { assertEqual, assertNear, test } from "../testlib";
 import { advancePhysics, canvasContext, makeFixture } from "../helpers";
 import { Vector2 } from "../../src/math/vector";
+import { world } from "../../src/core/configuration";
 
 test("Player owns readonly team identity and placement operations", function () {
   var fixture = makeFixture();
@@ -21,7 +22,7 @@ test("Player updateFacing maps movement vectors", function () {
   var fixture = makeFixture();
   var player = fixture.playerHome;
 
-  player.velocity.x = 10;
+  player.velocity.x = world(10);
   player.velocity.y = 0;
   player.updateFacing();
   assertEqual(player.facingX, 1);
@@ -106,6 +107,27 @@ test("Player spriteFrame uses neutral phase while standing without resetting wal
   assertEqual(player.stepDistance, 3);
 });
 
+test("Player sprite layout uses explicit state and direction rows", function () {
+  var fixture = makeFixture();
+  var player = fixture.playerHome;
+
+  var idle = player.spriteFrame(0);
+  assertEqual(idle.state, "idle");
+  assertEqual(idle.topLeftX, 0);
+  assertEqual(idle.topLeftY, 0);
+
+  player.velocity.x = 1;
+  player.phaseIndex = 7;
+  var run = player.spriteFrame(16);
+  assertEqual(run.state, "run");
+  assertEqual(run.topLeftX, 7 * fixture.config.player.spriteFrameWidth);
+  assertEqual(
+    run.topLeftY,
+    (fixture.config.player.runRowOffset + 2) *
+      fixture.config.player.spriteFrameHeight,
+  );
+});
+
 test("Player draw does not reset walk state when velocity is momentarily zero", function () {
   var fixture = makeFixture();
   var player = fixture.playerHome;
@@ -127,7 +149,7 @@ test("Player advances its walk phase from distance travelled when rendered", fun
   var fixture = makeFixture();
   fixture.config.physics.maxDeltaSeconds = 1;
   var player = fixture.playerHome;
-  player.velocity.x = 10;
+  player.velocity.x = world(10);
 
   advancePhysics(fixture, 1, "playersOnly");
 
@@ -135,10 +157,16 @@ test("Player advances its walk phase from distance travelled when rendered", fun
   assertEqual(player.stepDistance, 0);
 
   var sprite = player.spriteFrame(0);
+  var distance = world(10);
+  var expectedSteps = Math.floor(
+    distance / fixture.config.player.stepPxPerPhase,
+  );
+  var expectedPhase = expectedSteps % fixture.config.player.runPhases;
+  var expectedRemainder = distance % fixture.config.player.stepPxPerPhase;
 
-  assertEqual(sprite.phaseIndex, 2);
-  assertEqual(player.phaseIndex, 2);
-  assertNear(player.stepDistance, 2, 0.0001);
+  assertEqual(sprite.phaseIndex, expectedPhase);
+  assertEqual(player.phaseIndex, expectedPhase);
+  assertNear(player.stepDistance, expectedRemainder, 0.0001);
 });
 
 test("Player preserves partial walk distance while stationary", function () {
