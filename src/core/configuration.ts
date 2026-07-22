@@ -80,7 +80,7 @@ export class Configuration {
 
   readonly player = {
     radius: world(4),
-    stepPxPerPhase: 6,
+    stepPxPerPhase: 10,
     spriteWidth: 40,
     spriteHeight: 64,
     spriteCenterX: 20,
@@ -89,10 +89,7 @@ export class Configuration {
     spriteFrameHeight: 64,
     idleRowOffset: 0,
     runRowOffset: 8,
-    kickRowOffset: 16,
     runPhases: 8,
-    kickPhases: 4,
-    kickDurationSeconds: 0.24,
     markerOffsetX: world(-1),
     markerOffsetY: world(-2),
     markerOuterRadius: world(10),
@@ -226,7 +223,7 @@ export class Configuration {
     goalFocusSeconds: 1,
   };
   readonly input = { humanSwitchHysteresisDistance: world(20) };
-  readonly debug = { enabled: true, logSeconds: 3, logEveryNFrames: 4 };
+  readonly debug = { enabled: false, logSeconds: 3, logEveryNFrames: 4 };
 
   public constructor(
     readonly assets: GameAssets,

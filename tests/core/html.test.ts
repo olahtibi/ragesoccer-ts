@@ -44,7 +44,11 @@ test("Game page loads one module entry with canvas assets and mobile rotation UI
   assertTrue(html.includes('id="rotateNotice"'));
   assertTrue(html.includes('src="/src/main.ts"'));
   assertTrue(html.includes('src="assets/images/pitch-v2.png"'));
-  assertTrue(html.includes('src="assets/images/player-sprite-away-v2.png"'));
+  assertTrue(
+    html.includes(
+      'src="assets/images/soccer_player_for_arcade_style/sprite-map-away.png"',
+    ),
+  );
   assertTrue(main.includes("createGame("));
   assertTrue(main.includes("new Configuration(loadBrowserAssets()"));
   assertTrue(main.includes("visualViewport"));
@@ -64,18 +68,22 @@ test("Facelift assets have the production PNG dimensions and alpha layouts", fun
   }
 
   var pitch = pngHeader("public/assets/images/pitch-v2.png");
-  var home = pngHeader("public/assets/images/player-sprite-home-v2.png");
-  var away = pngHeader("public/assets/images/player-sprite-away-v2.png");
+  var home = pngHeader(
+    "public/assets/images/soccer_player_for_arcade_style/sprite-map-home.png",
+  );
+  var away = pngHeader(
+    "public/assets/images/soccer_player_for_arcade_style/sprite-map-away.png",
+  );
   var ball = pngHeader("public/assets/images/ball-v2.png");
 
   assertEqual(pitch.signature, "PNG");
   assertEqual(pitch.width, 2688);
   assertEqual(pitch.height, 3392);
   assertEqual(home.width, 320);
-  assertEqual(home.height, 1536);
+  assertEqual(home.height, 1024);
   assertEqual(home.colorType, 6);
   assertEqual(away.width, 320);
-  assertEqual(away.height, 1536);
+  assertEqual(away.height, 1024);
   assertEqual(away.colorType, 6);
   assertEqual(ball.width, 144);
   assertEqual(ball.height, 16);

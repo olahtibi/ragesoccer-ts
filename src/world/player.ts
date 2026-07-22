@@ -11,7 +11,7 @@ export interface SpriteFrame {
   topLeftY: number;
 }
 
-export type PlayerAnimationState = "idle" | "run" | "kick";
+export type PlayerAnimationState = "idle" | "run";
 
 class Player {
   public readonly imgPlayer: HTMLImageElement;
@@ -43,14 +43,8 @@ class Player {
   private readonly spriteFrameHeight: number;
   private readonly idleRowOffset: number;
   private readonly runRowOffset: number;
-  private readonly kickRowOffset: number;
   private readonly runPhases: number;
-  private readonly kickPhases: number;
-  private readonly kickDurationSeconds: number;
   private readonly lastAnimationPosition: Vector2d;
-  private kickStartedTimeMs: number | null;
-  private kickDirectionX: number;
-  private kickDirectionY: number;
 
   public constructor(
     imgPlayer: HTMLImageElement,
@@ -87,10 +81,7 @@ class Player {
     this.spriteFrameHeight = playerConfig.spriteFrameHeight;
     this.idleRowOffset = playerConfig.idleRowOffset;
     this.runRowOffset = playerConfig.runRowOffset;
-    this.kickRowOffset = playerConfig.kickRowOffset;
     this.runPhases = playerConfig.runPhases;
-    this.kickPhases = playerConfig.kickPhases;
-    this.kickDurationSeconds = playerConfig.kickDurationSeconds;
     this.lastAnimationPosition = new Vector2d(this.position.x, this.position.y);
     // Walk-cycle state advances with rendered travel rather than wall-clock
     // time, so the animation naturally freezes when the player does.
@@ -98,9 +89,6 @@ class Player {
     this.stepDistance = 0;
     this.teamSide = teamSide;
     this.facingTarget = null;
-    this.kickStartedTimeMs = null;
-    this.kickDirectionX = this.facingX;
-    this.kickDirectionY = this.facingY;
   }
 
   public stop(): void {
@@ -170,13 +158,6 @@ class Player {
       return performance.now();
     }
     return Date.now();
-  }
-
-  public playKick(nowMs: number | null = null): void {
-    this.updateFacing();
-    this.kickDirectionX = this.facingX;
-    this.kickDirectionY = this.facingY;
-    this.kickStartedTimeMs = nowMs ?? this.animationNowMs();
   }
 
   public animationElapsedSeconds(nowMs: number): number {
@@ -281,33 +262,13 @@ class Player {
   public spriteFrame(animationTimeMs: number | null = null): SpriteFrame {
     const nowMs = animationTimeMs ?? this.animationNowMs();
     this.updateAnimation(nowMs);
-    let state: PlayerAnimationState = this.animationMoving ? "run" : "idle";
-    let phaseIndex = this.animationMoving ? this.phaseIndex : 0;
-    let directionX = this.animationFacingX;
-    let directionY = this.animationFacingY;
-    let rowOffset = state == "run" ? this.runRowOffset : this.idleRowOffset;
-
-    if (this.kickStartedTimeMs != null) {
-      const elapsedSeconds = Math.max(
-        0,
-        (nowMs - this.kickStartedTimeMs) / 1000,
-      );
-      if (elapsedSeconds < this.kickDurationSeconds) {
-        state = "kick";
-        phaseIndex = Math.min(
-          this.kickPhases - 1,
-          Math.floor(
-            (elapsedSeconds / this.kickDurationSeconds) * this.kickPhases,
-          ),
-        );
-        directionX = this.kickDirectionX;
-        directionY = this.kickDirectionY;
-        rowOffset = this.kickRowOffset;
-      } else {
-        this.kickStartedTimeMs = null;
-      }
-    }
-    const directionIndex = this.directionIndex(directionX, directionY);
+    const state: PlayerAnimationState = this.animationMoving ? "run" : "idle";
+    const phaseIndex = this.animationMoving ? this.phaseIndex : 0;
+    const rowOffset = state == "run" ? this.runRowOffset : this.idleRowOffset;
+    const directionIndex = this.directionIndex(
+      this.animationFacingX,
+      this.animationFacingY,
+    );
     return {
       phaseIndex: phaseIndex,
       state: state,

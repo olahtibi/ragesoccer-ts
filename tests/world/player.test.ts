@@ -128,30 +128,6 @@ test("Player sprite layout uses explicit state and direction rows", function () 
   );
 });
 
-test("Player kick animation locks direction and returns to locomotion", function () {
-  var fixture = makeFixture();
-  var player = fixture.playerHome;
-  player.velocity.x = 1;
-  player.spriteFrame(900);
-  player.playKick(1000);
-  player.velocity.x = -1;
-
-  var contact = player.spriteFrame(1000);
-  var followThrough = player.spriteFrame(1120);
-  assertEqual(contact.state, "kick");
-  assertEqual(contact.phaseIndex, 0);
-  assertEqual(
-    contact.topLeftY,
-    (fixture.config.player.kickRowOffset + 2) *
-      fixture.config.player.spriteFrameHeight,
-  );
-  assertEqual(followThrough.state, "kick");
-  assertEqual(followThrough.phaseIndex, 2);
-
-  var resumed = player.spriteFrame(1240);
-  assertEqual(resumed.state, "run");
-});
-
 test("Player draw does not reset walk state when velocity is momentarily zero", function () {
   var fixture = makeFixture();
   var player = fixture.playerHome;
@@ -181,10 +157,16 @@ test("Player advances its walk phase from distance travelled when rendered", fun
   assertEqual(player.stepDistance, 0);
 
   var sprite = player.spriteFrame(0);
+  var distance = world(10);
+  var expectedSteps = Math.floor(
+    distance / fixture.config.player.stepPxPerPhase,
+  );
+  var expectedPhase = expectedSteps % fixture.config.player.runPhases;
+  var expectedRemainder = distance % fixture.config.player.stepPxPerPhase;
 
-  assertEqual(sprite.phaseIndex, 6);
-  assertEqual(player.phaseIndex, 6);
-  assertNear(player.stepDistance, 4, 0.0001);
+  assertEqual(sprite.phaseIndex, expectedPhase);
+  assertEqual(player.phaseIndex, expectedPhase);
+  assertNear(player.stepDistance, expectedRemainder, 0.0001);
 });
 
 test("Player preserves partial walk distance while stationary", function () {

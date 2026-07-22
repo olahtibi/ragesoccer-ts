@@ -1,109 +1,12 @@
 #!/usr/bin/env python3
-"""Assemble the generated graphics sources into deterministic game assets."""
+"""Build the generated pitch and ball game assets."""
 
 from __future__ import annotations
 
 import argparse
-import colorsys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
-
-
-FRAME_WIDTH = 40
-FRAME_HEIGHT = 64
-DIRECTIONS = 8
-RUN_FRAMES = 8
-KICK_FRAMES = 4
-
-
-def alpha_bbox(image: Image.Image) -> tuple[int, int, int, int] | None:
-    alpha = image.getchannel("A").point(lambda value: 255 if value >= 24 else 0)
-    return alpha.getbbox()
-
-
-def fit_frame(cell: Image.Image, mirror: bool = False) -> Image.Image:
-    bbox = alpha_bbox(cell)
-    frame = Image.new("RGBA", (FRAME_WIDTH, FRAME_HEIGHT))
-    if bbox is None:
-        return frame
-    sprite = cell.crop(bbox)
-    if mirror:
-        sprite = sprite.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-    scale = min(38 / sprite.width, 61 / sprite.height)
-    size = (
-        max(1, round(sprite.width * scale)),
-        max(1, round(sprite.height * scale)),
-    )
-    sprite = sprite.resize(size, Image.Resampling.LANCZOS)
-    x = (FRAME_WIDTH - sprite.width) // 2
-    y = 62 - sprite.height
-    frame.alpha_composite(sprite, (x, y))
-    return frame
-
-
-def grid_cell(
-    image: Image.Image, columns: int, rows: int, column: int, row: int
-) -> Image.Image:
-    left = round(column * image.width / columns)
-    right = round((column + 1) * image.width / columns)
-    top = round(row * image.height / rows)
-    bottom = round((row + 1) * image.height / rows)
-    return image.crop((left, top, right, bottom))
-
-
-def build_player_sheet(
-    idle_source: Path, run_source: Path, kick_source: Path
-) -> Image.Image:
-    idle = Image.open(idle_source).convert("RGBA")
-    run = Image.open(run_source).convert("RGBA")
-    kick = Image.open(kick_source).convert("RGBA")
-    sheet = Image.new("RGBA", (FRAME_WIDTH * 8, FRAME_HEIGHT * 24))
-
-    for direction in range(DIRECTIONS):
-        frame = fit_frame(grid_cell(idle, 8, 1, direction, 0))
-        sheet.alpha_composite(frame, (0, direction * FRAME_HEIGHT))
-
-        for phase in range(RUN_FRAMES):
-            frame = fit_frame(grid_cell(run, 8, 8, phase, direction))
-            sheet.alpha_composite(
-                frame,
-                (phase * FRAME_WIDTH, (8 + direction) * FRAME_HEIGHT),
-            )
-
-    # The kick source supplied six useful directional rows. West and northwest
-    # are exact mirrors of east and northeast so timing and anchors stay equal.
-    kick_rows = ((0, False), (1, False), (2, False), (3, False),
-                 (4, False), (5, False), (2, True), (1, True))
-    for direction, (source_row, mirror) in enumerate(kick_rows):
-        for phase in range(KICK_FRAMES):
-            frame = fit_frame(
-                grid_cell(kick, 4, 8, phase, source_row), mirror=mirror
-            )
-            sheet.alpha_composite(
-                frame,
-                (phase * FRAME_WIDTH, (16 + direction) * FRAME_HEIGHT),
-            )
-    return sheet
-
-
-def recolor_away(sheet: Image.Image) -> Image.Image:
-    pixels = []
-    for red, green, blue, alpha in sheet.getdata():
-        hue, saturation, lightness = colorsys.rgb_to_hls(
-            red / 255, green / 255, blue / 255
-        )
-        if alpha and saturation > 0.45 and (hue < 0.045 or hue > 0.96):
-            red_f, green_f, blue_f = colorsys.hls_to_rgb(0.62, lightness, saturation)
-            red, green, blue = (
-                round(red_f * 255),
-                round(green_f * 255),
-                round(blue_f * 255),
-            )
-        pixels.append((red, green, blue, alpha))
-    result = Image.new("RGBA", sheet.size)
-    result.putdata(pixels)
-    return result
 
 
 def load_font(size: int) -> ImageFont.ImageFont:
@@ -183,18 +86,11 @@ def build_ball_sheet() -> Image.Image:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pitch", type=Path, required=True)
-    parser.add_argument("--idle", type=Path, required=True)
-    parser.add_argument("--run", type=Path, required=True)
-    parser.add_argument("--kick", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    home = build_player_sheet(args.idle, args.run, args.kick)
-    away = recolor_away(home)
     build_pitch(args.pitch).save(args.out_dir / "pitch-v2.png", optimize=True)
-    home.save(args.out_dir / "player-sprite-home-v2.png", optimize=True)
-    away.save(args.out_dir / "player-sprite-away-v2.png", optimize=True)
     build_ball_sheet().save(args.out_dir / "ball-v2.png", optimize=True)
 
 

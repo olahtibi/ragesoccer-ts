@@ -155,7 +155,6 @@ class Physics {
         approach * this.config.physics.playerMomentumTransfer;
 
       const jTotal = (jBounce + jKick) * ball.consumeKickImpulseMultiplier();
-      if (jTotal > 0) p.playKick();
       // Applied along +n (outward from the player).
       ball.velocity.x += nx * jTotal;
       ball.velocity.y += ny * jTotal;
