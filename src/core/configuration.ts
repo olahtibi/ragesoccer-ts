@@ -74,7 +74,7 @@ export class Configuration {
     heldOffsetX: world(5),
     heldOffsetY: world(-8),
     shadowFrame: 8,
-    shadowOffset: world(1),
+    shadowMaxHeight: world(40),
   };
 
   readonly player = {
