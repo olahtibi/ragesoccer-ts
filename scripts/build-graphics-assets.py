@@ -6,57 +6,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
-
-
-def load_font(size: int) -> ImageFont.ImageFont:
-    candidates = (
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    )
-    for candidate in candidates:
-        try:
-            return ImageFont.truetype(candidate, size)
-        except OSError:
-            pass
-    return ImageFont.load_default()
+from PIL import Image, ImageDraw
 
 
 def build_pitch(source: Path) -> Image.Image:
-    pitch = Image.open(source).convert("RGB").resize(
+    return Image.open(source).convert("RGB").resize(
         (2688, 3392), Image.Resampling.LANCZOS
     )
-    draw = ImageDraw.Draw(pitch)
-    font = load_font(27)
-    sponsors = (
-        ("RAGE COLA", "#c83b32"),
-        ("TURBO BOOT", "#234e91"),
-        ("MEGA BYTE", "#6f348a"),
-        ("GOAL OIL", "#c87a18"),
-        ("KICKR", "#19776c"),
-    )
-    board_left = 344
-    board_right = 2344
-    board_width = (board_right - board_left) // len(sponsors)
-    for y in (278, 3092):
-        for index, (label, color) in enumerate(sponsors):
-            left = board_left + index * board_width
-            right = board_left + (index + 1) * board_width - 6
-            draw.rounded_rectangle(
-                (left, y, right, y + 58), radius=5, fill=color,
-                outline="#e6dfc8", width=3
-            )
-            box = draw.textbbox((0, 0), label, font=font)
-            text_width = box[2] - box[0]
-            draw.text(
-                ((left + right - text_width) / 2, y + 12),
-                label,
-                font=font,
-                fill="#fffbe8",
-                stroke_width=1,
-                stroke_fill="#1b1b1b",
-            )
-    return pitch
 
 
 def build_ball_sheet() -> Image.Image:
