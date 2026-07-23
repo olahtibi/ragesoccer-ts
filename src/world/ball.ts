@@ -18,6 +18,7 @@ class Ball {
   public rollDistance: number;
   private readonly spinPxPerPhase: number;
   private readonly spritePhases: number;
+  private readonly spriteSize: number;
   private readonly lastAnimationPosition: Vector2d;
   private readonly heldOffsetX: number;
   private readonly heldOffsetY: number;
@@ -44,6 +45,7 @@ class Ball {
     this.rollDistance = 0;
     this.spinPxPerPhase = ballConfig.spinPxPerPhase;
     this.spritePhases = ballConfig.spritePhases;
+    this.spriteSize = ballConfig.spriteSize;
     this.lastAnimationPosition = new Vector2d(this.position.x, this.position.y);
     this.heldOffsetX = ballConfig.heldOffsetX;
     this.heldOffsetY = ballConfig.heldOffsetY;
@@ -85,7 +87,7 @@ class Ball {
 
   public drawShadow(ctx: CanvasRenderingContext2D): void {
     if (this.heldBy != null) return;
-    const size = this.ballRadius * 2;
+    const size = this.spriteSize;
     const heightRatio = Math.min(1, this.position.z / this.shadowMaxHeight);
     const scale = 1 - heightRatio * 0.45;
     const shadowSize = size * scale;
@@ -109,30 +111,30 @@ class Ball {
     if (this.heldBy != null) {
       const held = this.heldPosition();
       this.holdAnimationAt(held);
-      const heldSize = this.ballRadius * 2;
+      const heldSize = this.spriteSize;
       ctx.drawImage(
         this.imgBall,
         this.phaseIndex * heldSize,
         0,
         heldSize,
         heldSize,
-        held.x - this.ballRadius,
-        held.y - this.ballRadius,
+        held.x - heldSize / 2,
+        held.y - heldSize / 2,
         heldSize,
         heldSize,
       );
       return;
     }
     this.updateAnimation(this.position);
-    const size = this.ballRadius * 2;
+    const size = this.spriteSize;
     ctx.drawImage(
       this.imgBall,
       this.phaseIndex * size,
       0,
       size,
       size,
-      this.position.x - this.ballRadius,
-      this.position.y - this.ballRadius - this.position.z,
+      this.position.x - size / 2,
+      this.position.y - size / 2 - this.position.z,
       size,
       size,
     );

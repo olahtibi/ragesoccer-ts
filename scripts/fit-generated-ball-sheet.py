@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fit a generated nine-item ball strip to the game's 16 px sprite grid."""
+"""Fit a generated nine-item ball strip to the game's ball sprite grid."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from pathlib import Path
 from PIL import Image
 
 
-FRAME_SIZE = 16
-BALL_SIZE = 14
+FRAME_SIZE = 20
+BALL_SIZE = 18
 FRAME_COUNT = 9
 
 
@@ -51,8 +51,8 @@ def build_sheet(source: Path) -> Image.Image:
         sheet.alpha_composite(ball, (x, y))
 
     shadow = content_crop(image, *runs[8])
-    shadow = shadow.resize((14, 5), Image.Resampling.LANCZOS)
-    sheet.alpha_composite(shadow, (8 * FRAME_SIZE + 1, 6))
+    shadow = shadow.resize((FRAME_SIZE - 2, 6), Image.Resampling.LANCZOS)
+    sheet.alpha_composite(shadow, (8 * FRAME_SIZE + 1, 7))
     return sheet
 
 

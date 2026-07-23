@@ -70,6 +70,7 @@ export class Configuration {
 
   readonly ball = {
     radius: world(2),
+    spriteSize: world(5),
     spinPxPerPhase: world(3),
     spritePhases: 8,
     heldOffsetX: world(5),
