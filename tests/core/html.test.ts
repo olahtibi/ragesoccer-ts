@@ -44,7 +44,7 @@ test("Game page loads one module entry with canvas assets and mobile rotation UI
   assertTrue(html.includes('id="rotateNotice"'));
   assertTrue(html.includes('src="/src/main.ts"'));
   assertTrue(html.includes('src="assets/images/pitch-v2.png"'));
-  assertTrue(html.includes('src="assets/images/ball-v4.png"'));
+  assertTrue(html.includes('src="assets/images/ball-v5.png"'));
   assertTrue(
     html.includes(
       'src="assets/images/soccer_player_for_arcade_style/sprite-map-away.png"',
@@ -75,7 +75,7 @@ test("Facelift assets have the production PNG dimensions and alpha layouts", fun
   var away = pngHeader(
     "public/assets/images/soccer_player_for_arcade_style/sprite-map-away.png",
   );
-  var ball = pngHeader("public/assets/images/ball-v4.png");
+  var ball = pngHeader("public/assets/images/ball-v5.png");
 
   assertEqual(pitch.signature, "PNG");
   assertEqual(pitch.width, 2688);

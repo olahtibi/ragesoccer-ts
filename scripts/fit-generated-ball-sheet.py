@@ -10,7 +10,7 @@ from PIL import Image
 
 
 FRAME_SIZE = 20
-BALL_SIZE = 18
+BALL_SIZE = 16
 FRAME_COUNT = 9
 
 
